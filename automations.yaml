@@ -82,21 +82,3 @@
     entity_id: 32f93239d86769a230df92e7e358aa88
     domain: switch
   mode: single
-- id: '1732542411327'
-  alias: Announce printer complete
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - sensor.mfc_j1170dw_status
-    from: printing
-    to:
-  conditions: []
-  actions:
-  - action: tts.speak
-    metadata: {}
-    data:
-      cache: true
-      media_player_entity_id: media_player.kitchen_display
-      message: Printer is done
-  mode: single

@@ -24,9 +24,14 @@ tts:
   - platform: google_translate
 
 group: !include groups.yaml
-automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
+
+# HASS Allows for Automations built through the UI and manually to be merged
+# together with modular configuration.
+# See: https://www.home-assistant.io/docs/configuration/splitting_configuration/#example-combine-include_dir_merge_list-with-automationsyaml
+automation ui: !include automations.yaml
+automation manual: !include_dir_merge_list automations/
 
 multiscrape: !include integrations/multiscrape.yaml
 
