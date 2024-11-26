@@ -1,0 +1,29 @@
+# 
+- resource: 'https://app.smartoilgauge.com/ajax/main_ajax.php'
+  method: POST
+  payload: 'action=get_tanks_list&tank_id=0'
+  headers:
+    X-Requested-With : XMLHttpRequest
+    Content-Type : application/x-www-form-urlencoded
+  scan_interval: 3600
+  form_submit:
+    submit_once: False
+    resource: 'https://app.smartoilgauge.com/login.php'
+    select: ".content-container"
+    input:
+      username: !secret smartoil_username
+      user_pass: !secret smartoil_password
+  sensor:
+    - name: smartoiltank
+      unique_id: smartoiltank
+      value_template: '{{ value_json.tanks[0].sensor_gallons }}'
+      unit_of_measurement: "gal" 
+      attributes:
+        - name: tank_name
+          value_template: '{{ value_json.tanks[0].tank_name }}'
+        - name: last_updated_time
+          value_template: '{{ value_json.tanks[0].sensor_rt }}'
+        - name: last_updated_timestamp
+          value_template: '{{ value_json.tanks[0].last_read }}'
+        - name: battery
+          value_template: '{{ value_json.tanks[0].battery }}'
