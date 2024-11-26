@@ -8,10 +8,8 @@
       to: null
   conditions: []
   actions:
-    - action: tts.speak
-      metadata: {}
+    - action: tts.google_translate_say
       data:
-        cache: true
-        media_player_entity_id: media_player.kitchen_display
-        message: Printer is done
+        message: Printer finished printing
+        entity_id: media_player.kitchen_display
   mode: single
