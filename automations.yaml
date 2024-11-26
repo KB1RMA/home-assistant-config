@@ -1,0 +1,102 @@
+- id: '1638400101028'
+  alias: Doorbell
+  description: ''
+  trigger:
+  - platform: event
+    event_type: unifiprotect_doorbell
+    event_data: {}
+  condition: []
+  action:
+  - service: tts.google_translate_say
+    data:
+      message: Someone is at the door
+      entity_id: media_player.kitchen_display
+  - service: tts.google_translate_say
+    data:
+      message: Someone is at the door
+      entity_id: media_player.living_room_speaker
+  mode: single
+- id: '1640903808419'
+  alias: Back Door Turn Light Off When No More Motion
+  description: If the back door lights were turned on by the automation, but motion
+    is no longer detected, turn them off
+  trigger:
+  - platform: state
+    entity_id:
+    - sensor.back_door_kent_st_detected_object
+    to: none
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 20
+  condition:
+  - condition: device
+    type: is_on
+    device_id: e8c5693dee8c4e27766a8d5a693cc993
+    entity_id: light.back_stairs_back_porch_lights_2
+    domain: light
+  - condition: and
+    conditions:
+    - condition: state
+      entity_id: input_boolean.backdoor_on_by_motion
+      state: 'on'
+  action:
+  - type: turn_off
+    device_id: e8c5693dee8c4e27766a8d5a693cc993
+    entity_id: light.back_stairs_back_porch_lights_2
+    domain: light
+  - service: input_boolean.turn_off
+    data: {}
+    target:
+      entity_id: input_boolean.backdoor_on_by_motion
+  mode: single
+- id: '1697666701524'
+  alias: Turn pumking lights on
+  description: ''
+  triggers:
+  - type: turned_on
+    device_id: 5dcc851543752b7a61f367d4e5f9e5a7
+    entity_id: 6a5424afb85594e61627fe75dbd865dd
+    domain: light
+    trigger: device
+  conditions: []
+  actions:
+  - type: turn_on
+    device_id: 22336f8b788be85c3d1dfd386e62d72c
+    entity_id: 32f93239d86769a230df92e7e358aa88
+    domain: switch
+  mode: single
+- id: '1697666730449'
+  alias: Turn off pumpkin lights
+  description: ''
+  triggers:
+  - type: turned_off
+    device_id: 5dcc851543752b7a61f367d4e5f9e5a7
+    entity_id: 6a5424afb85594e61627fe75dbd865dd
+    domain: light
+    trigger: device
+  conditions: []
+  actions:
+  - type: turn_off
+    device_id: 22336f8b788be85c3d1dfd386e62d72c
+    entity_id: 32f93239d86769a230df92e7e358aa88
+    domain: switch
+  mode: single
+- id: '1732542411327'
+  alias: Announce printer complete
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - sensor.mfc_j1170dw_status
+    from: printing
+    to:
+  conditions: []
+  actions:
+  - action: tts.speak
+    metadata: {}
+    data:
+      cache: true
+      media_player_entity_id: media_player.kitchen_display
+      message: Printer is done
+  mode: single

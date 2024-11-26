@@ -1,0 +1,72 @@
+# Configure a default setup of Home Assistant (frontend, api, etc)
+default_config:
+
+homeassistant:
+  external_url: !secret hass_external_url
+  internal_url: !secret hass_internal_url
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies: !secret hass_trusted_proxies
+
+logger:
+  default: info
+
+stream:
+
+ffmpeg:
+
+prometheus:
+  namespace: myhass
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+group: !include groups.yaml
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+google_assistant:
+  project_id: !secret google_assistant_project_id
+  service_account: !include homeassistant-315801-1ef13bba8930.secret.json
+  report_state: true
+
+nest:
+  client_id: !secret nest_client_id
+  client_secret: !secret nest_client_secret
+  # "Project ID" in the Device Access Console
+  project_id: !secret nest_project_id
+  # Provide the full path exactly as shown under "Subscription name" in Google Cloud Console
+  subscriber_id: !secret nest_subscriber_id
+
+multiscrape:
+  - resource: 'https://app.smartoilgauge.com/ajax/main_ajax.php'
+    method: POST
+    payload: 'action=get_tanks_list&tank_id=0'
+    headers:
+      X-Requested-With : XMLHttpRequest
+      Content-Type : application/x-www-form-urlencoded
+    scan_interval: 3600
+    form_submit:
+      submit_once: False
+      resource: 'https://app.smartoilgauge.com/login.php'
+      select: ".content-container"
+      input:
+        username: !secret smartoil_username
+        user_pass: !secret smartoil_password
+    sensor:
+      - name: smartoiltank
+        unique_id: smartoiltank
+        value_template: '{{ value_json.tanks[0].sensor_gallons }}'
+        unit_of_measurement: "gal" 
+        attributes:
+          - name: tank_name
+            value_template: '{{ value_json.tanks[0].tank_name }}'
+          - name: last_updated_time
+            value_template: '{{ value_json.tanks[0].sensor_rt }}'
+          - name: last_updated_timestamp
+            value_template: '{{ value_json.tanks[0].last_read }}'
+          - name: battery
+            value_template: '{{ value_json.tanks[0].battery }}'
