@@ -37,7 +37,7 @@ multiscrape: !include integrations/multiscrape.yaml
 
 google_assistant:
   project_id: !secret google_assistant_project_id
-  service_account: !include homeassistant-315801-1ef13bba8930.secret.json
+  service_account: !secret google_assistant_service_account
   report_state: true
 
 nest:
