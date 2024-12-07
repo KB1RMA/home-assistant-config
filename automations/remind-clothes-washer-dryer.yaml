@@ -1,0 +1,53 @@
+- id: '1733249852673'
+  alias: Remind about clothes in Washing Machine
+  description: If the door hasn't been opened and the washing machine has completed
+    remind the house
+  triggers:
+  - device_id: e9bd4b0570a5fb7d87d74d2fa13f8ccd
+    domain: miele
+    entity_id: sensor.washing_machine_status
+    type: program_ended
+    trigger: device
+  conditions:
+  - type: is_not_open
+    condition: device
+    device_id: e9bd4b0570a5fb7d87d74d2fa13f8ccd
+    entity_id: 8a67600394b4e9729f91f304fe735cee
+    domain: binary_sensor
+    for:
+      hours: 0
+      minutes: 20
+      seconds: 0
+  actions:
+  - data:
+      message: Clothes are still in the washing machine
+      entity_id: media_player.kitchen_display
+    action: tts.google_translate_say
+  mode: single
+
+- id: '1733249966668'
+  alias: Remind Clothes in Dryer
+  description: If the door hasn't been opened and the dryer has completed remind the
+    house
+  triggers:
+  - device_id: 5c5cf8ddfedaa6143e2a099703d74d54
+    domain: miele
+    entity_id: sensor.tumble_dryer_status
+    type: program_ended
+    trigger: device
+  conditions:
+  - type: is_not_open
+    condition: device
+    device_id: 5c5cf8ddfedaa6143e2a099703d74d54
+    entity_id: f9b910e9f4201847e993b59f78b3388b
+    domain: binary_sensor
+    for:
+      hours: 0
+      minutes: 20
+      seconds: 0
+  actions:
+  - data:
+      message: Clothes are still in the dryer
+      entity_id: media_player.kitchen_display
+    action: tts.google_translate_say
+  mode: single

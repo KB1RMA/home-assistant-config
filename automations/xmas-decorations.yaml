@@ -49,5 +49,6 @@
   actions:
   - type: turn_off
     device_id: 65179b21da16920d3a81c2d8c71201d1
-    entity_id: 2cbbe7695a270982a6d7e69256175469    domain: switch
+    entity_id: 2cbbe7695a270982a6d7e69256175469
+    domain: switch
   mode: single
