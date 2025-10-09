@@ -1,0 +1,146 @@
+# Gas Rate Change Notifications
+# Alerts when National Grid rate changes are detected via multiscrape
+
+- id: 'gas_rate_change_notification'
+  alias: "Gas Rate Change - Notification"
+  description: "Notify when National Grid gas rates may have changed"
+  variables:
+    notification_title: "National Grid Gas Rates"
+  triggers:
+  - trigger: state
+    entity_id: sensor.national_grid_gas_tariff_last_updated
+    not_from:
+      - "unknown"
+      - "unavailable"
+    not_to:
+      - "unknown" 
+      - "unavailable"
+    for:
+      minutes: 5  # Wait 5 minutes to ensure it's not a startup glitch
+  - trigger: state
+    entity_id: sensor.gas_rate_change_monitor
+    attribute: current_tariff_version
+    for:
+      minutes: 5
+  # Monitor actual rate changes
+  - trigger: state
+    entity_id: sensor.national_grid_gas_delivery_rate
+    for:
+      minutes: 5
+  - trigger: state
+    entity_id: sensor.national_grid_gas_supply_rate
+    for:
+      minutes: 5
+  - trigger: state
+    entity_id: sensor.national_grid_gas_customer_charge
+    for:
+      minutes: 5
+  conditions:
+  - condition: template
+    value_template: >
+      {{ states('sensor.national_grid_gas_tariff_last_updated') not in ['unknown', 'unavailable'] }}
+  actions:
+  - action: notify.persistent_notification
+    data:
+      title: "{{ notification_title }} - Rate Update Detected"
+      message: >
+        🏭 **Gas Rate Change Detected!**
+        
+        **Tariff Information:**
+        - Last Updated: {{ states('sensor.national_grid_gas_tariff_last_updated') }}
+        - Rate Schedule: {{ state_attr('sensor.national_grid_gas_tariff_last_updated', 'rate_schedule') | default('R-3C - Residential Heating Colonial') }}
+        - Tariff Version: {{ state_attr('sensor.national_grid_gas_tariff_last_updated', 'tariff_version') | default('Check website') }}
+        
+        **Current Extracted Rates:**
+        - Delivery Rate: ${{ states('sensor.national_grid_gas_delivery_rate') }}/CCF ({{ state_attr('sensor.national_grid_gas_delivery_rate', 'rate_source') }})
+        - Supply Rate: ${{ states('sensor.national_grid_gas_supply_rate') }}/CCF ({{ state_attr('sensor.national_grid_gas_supply_rate', 'rate_source') }})
+        - Customer Charge: ${{ states('sensor.national_grid_gas_customer_charge') }}/month
+        
+        **Automation Status:**
+        {{ state_attr('sensor.gas_rate_change_monitor', 'automation_status') }}
+        
+        **Source:** {{ state_attr('sensor.national_grid_gas_tariff_last_updated', 'source_url') | default('https://www.nationalgridus.com/MA-Gas-Home/Service-Rates/') }}
+        
+        No manual action required - rates are automatically extracted!
+
+# Monthly gas cost summary automation
+- id: 'monthly_gas_cost_summary'
+  alias: "Gas Cost - Monthly Summary"
+  description: "Send monthly summary of gas usage and costs"
+  variables:
+    notification_title: "Monthly Gas Summary"
+  triggers:
+  - trigger: time
+    at: "09:00:00"
+  - trigger: state
+    entity_id: sensor.gas_utility
+    # Triggers when the utility meter resets (new month)
+  conditions:
+  - condition: template
+    value_template: >
+      {{ now().day == 1 or trigger.platform == 'state' }}
+  - condition: template
+    value_template: >
+      {{ states('sensor.estimated_monthly_gas_cost') not in ['unknown', 'unavailable'] }}
+  actions:
+  - action: notify.persistent_notification
+    data:
+      title: "{{ notification_title }} - {{ now().strftime('%B %Y') }}"
+      message: >
+        📊 **Monthly Gas Usage Summary**
+        
+        **Last Month's Costs:**
+        - Total Estimated Cost: ${{ states('sensor.estimated_monthly_gas_cost') }}
+        - Delivery Charges: ${{ state_attr('sensor.estimated_monthly_gas_cost', 'estimated_delivery_cost') }}
+        - Supply Charges: ${{ state_attr('sensor.estimated_monthly_gas_cost', 'estimated_supply_cost') }}
+        - Customer Charge: ${{ state_attr('sensor.estimated_monthly_gas_cost', 'customer_charge') }}
+        
+        **Usage Details:**
+        - Consumption: {{ state_attr('sensor.estimated_monthly_gas_cost', 'last_month_consumption_ft3') }} ft³ ({{ state_attr('sensor.estimated_monthly_gas_cost', 'last_month_consumption_ccf') }} CCF)
+        
+        **Rate Information (Automatically Extracted):**
+        - Delivery Rate: ${{ state_attr('sensor.estimated_monthly_gas_cost', 'delivery_rate_per_ccf') }}/CCF
+        - Supply Rate: ${{ state_attr('sensor.estimated_monthly_gas_cost', 'supply_rate_per_ccf') }}/CCF
+        - Source: {{ state_attr('sensor.estimated_monthly_gas_cost', 'rate_source') }}
+        
+        **This Month So Far:**
+        - Current Usage: {{ states('sensor.current_month_gas_consumption_trend') }} ft³
+        - Projected Monthly: {{ state_attr('sensor.current_month_gas_consumption_trend', 'projected_monthly_consumption') }} ft³
+
+# High usage alert
+- id: 'gas_usage_high_alert'
+  alias: "Gas Usage - High Consumption Alert"
+  description: "Alert when gas usage is significantly higher than normal"
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.current_month_gas_consumption_trend
+    attribute: projected_monthly_consumption
+    above: input_number.gas_usage_alert_threshold
+    for:
+      hours: 6  # Wait 6 hours to ensure it's not a temporary spike
+  conditions:
+  - condition: template
+    value_template: >
+      {{ state_attr('sensor.current_month_gas_consumption_trend', 'projected_monthly_consumption') | float(0) > 0 }}
+  actions:
+  - action: notify.persistent_notification
+    data:
+      title: "🔥 High Gas Usage Alert"
+      message: >
+        **High Gas Usage Detected!**
+        
+        **Current Projections:**
+        - Projected Monthly Usage: {{ state_attr('sensor.current_month_gas_consumption_trend', 'projected_monthly_consumption') }} ft³
+        - Usage This Month: {{ states('sensor.current_month_gas_consumption_trend') }} ft³
+        - Days Elapsed: {{ state_attr('sensor.current_month_gas_consumption_trend', 'days_in_month') }}
+        
+        **Last Month for Comparison:**
+        - Previous Usage: {{ state_attr('sensor.estimated_monthly_gas_cost', 'last_month_consumption_ft3') }} ft³
+        
+        This usage is above your alert threshold of {{ states('input_number.gas_usage_alert_threshold') }} ft³.
+        
+        Consider checking:
+        - Thermostat settings
+        - Windows/doors left open
+        - Heating system efficiency
+        - Weather conditions
