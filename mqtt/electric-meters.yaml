@@ -1,0 +1,15 @@
+# Electric Meter MQTT Sensors
+# Monitors electric consumption from various meter IDs via metermon
+
+- name: "Electric Meter Consumption 44890317"
+  state_topic: "metermon/44890317"
+  state_topic: "metermon/44890317"
+  value_template: "{{ value_json.Consumption }}"
+  unit_of_measurement: 'kWh'
+  device_class: 'energy'
+  state_class: 'total_increasing'
+  availability:
+   - topic: "metermon/status"
+     payload_available: "Online"
+     payload_not_available: "Offline"
+  json_attributes_topic: "metermon/44890317"

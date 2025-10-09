@@ -1,0 +1,49 @@
+# Gas Usage Alert Threshold Input Helper
+# Keeps only the usage alert threshold - rates are now fully automated
+
+# Gas Rate Input Helpers
+# These allow manual entry of gas rates from your National Grid bill
+# Update these values when you receive your monthly gas bill
+
+# Alert threshold for high usage
+gas_usage_alert_threshold:
+  name: "Gas Usage Alert Threshold"
+  min: 0
+  max: 10000
+  step: 50
+  unit_of_measurement: "ft³/month"
+  icon: mdi:gas-cylinder
+  mode: box
+
+# Gas delivery rate (changes quarterly)
+gas_delivery_rate:
+  name: "Gas Delivery Rate"
+  min: 0.1
+  max: 2.0
+  step: 0.0001
+  initial: 0.6234
+  unit_of_measurement: "USD/CCF"
+  icon: mdi:pipe-valve
+  mode: box
+
+# Gas supply rate (changes monthly)  
+gas_supply_rate:
+  name: "Gas Supply Rate"
+  min: 0.1
+  max: 2.0
+  step: 0.0001
+  initial: 0.7892
+  unit_of_measurement: "USD/CCF"
+  icon: mdi:gas-burner
+  mode: box
+
+# Monthly customer charge
+gas_customer_charge:
+  name: "Gas Customer Charge"
+  min: 5.0
+  max: 50.0
+  step: 0.01
+  initial: 14.95
+  unit_of_measurement: "USD"
+  icon: mdi:cash
+  mode: box

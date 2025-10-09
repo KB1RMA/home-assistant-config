@@ -1,0 +1,156 @@
+# Room Lighting Control Scripts
+# These scripts provide reusable lighting control functionality
+
+toggle_room_lights:
+  alias: "Toggle Room Lights"
+  description: "Toggle all lights in a room on/off intelligently"
+  fields:
+    room_name:
+      description: "Name of the room/area"
+      required: true
+      selector:
+        text:
+    bright_scene:
+      description: "Entity ID of the bright scene for this room"
+      required: true
+      selector:
+        entity:
+          domain: scene
+  sequence:
+    - choose:
+        # If any lights in the room are on, turn them all off
+        - conditions:
+            - condition: template
+              value_template: >
+                {{ expand(area_entities(room_name)) | selectattr('domain', 'eq', 'light') 
+                   | selectattr('state', 'eq', 'on') | list | length > 0 }}
+          sequence:
+            - action: light.turn_off
+              target:
+                area_id: "{{ room_name }}"
+      # Otherwise turn on the bright scene
+      default:
+        - action: scene.turn_on
+          target:
+            entity_id: "{{ bright_scene }}"
+  mode: single
+
+activate_room_scene:
+  alias: "Activate Room Scene"
+  description: "Activate a specific scene in a room"
+  fields:
+    scene_entity:
+      description: "Entity ID of the scene to activate"
+      required: true
+      selector:
+        entity:
+          domain: scene
+  sequence:
+    - action: scene.turn_on
+      target:
+        entity_id: "{{ scene_entity }}"
+  mode: single
+
+cycle_dim_scenes:
+  alias: "Cycle Dimming Scenes"
+  description: "Cycle through dimming scenes or go to nightlight on long press"
+  fields:
+    event_type:
+      description: "Type of button press (short_release or long_release)"
+      required: true
+      selector:
+        text:
+    dimmed_scene:
+      description: "Entity ID of the dimmed scene"
+      required: true
+      selector:
+        entity:
+          domain: scene
+    nightlight_scene:
+      description: "Entity ID of the nightlight scene"
+      required: true
+      selector:
+        entity:
+          domain: scene
+  sequence:
+    - choose:
+        # Long press: go to nightlight
+        - conditions:
+            - condition: template
+              value_template: "{{ event_type == 'long_release' }}"
+          sequence:
+            - action: scene.turn_on
+              target:
+                entity_id: "{{ nightlight_scene }}"
+      # Short press: dimmed scene
+      default:
+        - action: scene.turn_on
+          target:
+            entity_id: "{{ dimmed_scene }}"
+  mode: single
+
+toggle_special_scenes:
+  alias: "Toggle Special Scenes"
+  description: "Activate read scene on short press, relax scene on long press"
+  fields:
+    event_type:
+      description: "Type of button press (short_release or long_release)"
+      required: true
+      selector:
+        text:
+    read_scene:
+      description: "Entity ID of the read scene"
+      required: true
+      selector:
+        entity:
+          domain: scene
+    relax_scene:
+      description: "Entity ID of the relax scene"
+      required: true
+      selector:
+        entity:
+          domain: scene
+  sequence:
+    - choose:
+        # Long press: relax scene
+        - conditions:
+            - condition: template
+              value_template: "{{ event_type == 'long_release' }}"
+          sequence:
+            - action: scene.turn_on
+              target:
+                entity_id: "{{ relax_scene }}"
+      # Short press: read scene
+      default:
+        - action: scene.turn_on
+          target:
+            entity_id: "{{ read_scene }}"
+  mode: single
+
+simple_toggle_room_lights:
+  alias: "Simple Toggle Room Lights"
+  description: "Simple on/off toggle for rooms without predefined scenes"
+  fields:
+    room_name:
+      description: "Name of the room/area"
+      required: true
+      selector:
+        text:
+  sequence:
+    - choose:
+        # If any lights in the room are on, turn them all off
+        - conditions:
+            - condition: template
+              value_template: >
+                {{ expand(area_entities(room_name)) | selectattr('domain', 'eq', 'light') 
+                   | selectattr('state', 'eq', 'on') | list | length > 0 }}
+          sequence:
+            - action: light.turn_off
+              target:
+                area_id: "{{ room_name }}"
+      # Otherwise turn all lights on
+      default:
+        - action: light.turn_on
+          target:
+            area_id: "{{ room_name }}"
+  mode: single

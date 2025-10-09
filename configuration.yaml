@@ -24,7 +24,7 @@ tts:
   - platform: google_translate
 
 group: !include groups.yaml
-script: !include scripts.yaml
+script: !include_dir_merge_named scripts/
 scene: !include scenes.yaml
 
 # HASS Allows for Automations built through the UI and manually to be merged
@@ -34,6 +34,10 @@ automation ui: !include automations.yaml
 automation manual: !include_dir_merge_list automations/
 
 multiscrape: !include integrations/multiscrape.yaml
+
+# Gas cost tracking and rate monitoring
+template: !include integrations/gas-cost-templates.yaml
+input_number: !include integrations/gas-input-helpers.yaml
 
 google_assistant:
   project_id: !secret google_assistant_project_id
@@ -47,4 +51,9 @@ nest:
   project_id: !secret nest_project_id
   # Provide the full path exactly as shown under "Subscription name" in Google Cloud Console
   subscriber_id: !secret nest_subscriber_id
+
+mqtt:
+  sensor: !include_dir_merge_list mqtt/
+
+utility_meter: !include utility-meters.yaml 
 
