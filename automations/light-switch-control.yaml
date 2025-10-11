@@ -1,285 +1,92 @@
-# Multi-Brand Light Switch Control - Simplified with Scripts
-# This file contains reusable automation template for controlling room lights with various switch types
-# Supports: Hue Dimmer Switches, Lutron Switches, and other multi-button switch devices
-# The heavy lifting is done by scripts in scripts/light-switches.yaml for better reusability
+# Kitchen Light Switch Control - Philips Hue Dimmer
+# Controls all lights in the Kitchen area using a Philips Hue dimmer switch
+# Switch entity: sensor.kitchen_hue_switch_action
+# Target area: kitchen (all light entities assigned to Kitchen area)
 
-# CONFIGURATION GUIDE:
-# 1. Find your switch entity name in Developer Tools > States (e.g., hue_dimmer_switch_1, lutron_bedroom_dimmer)
-# 2. Verify button event entities exist (event.{switch_name}_button_1, etc.)
-# 3. Set room_name to match your Home Assistant area name exactly
-# 4. Update scene entity IDs to match your room's configured scenes
-# 5. Copy and modify the template below for each room/switch
+# BUTTON FUNCTIONS:
+# - On Button (on_press_release): Always turn all kitchen lights on
+# - Off Button (off_press_release): Turn all kitchen lights off
+# - Up Button (up_press_release): Increase brightness by 10%
+# - Down Button (down_press_release): Decrease brightness by 10%
 
-# SUPPORTED SWITCH TYPES:
-# - Hue Dimmer: 4 buttons via zigbee2mqtt (on, dim_up, dim_down, off)
-# - Lutron Caseta: Various button configurations depending on model
-# - Other Zigbee/Z-Wave switches: Adjust trigger events as needed
+# SETUP REQUIREMENTS:
+# 1. Philips Hue dimmer switch integrated and creating sensor.kitchen_hue_switch_action
+# 2. All kitchen lights must be assigned to "Kitchen" area as light entities (not switch entities)
+# 3. Light entities (not switch entities) must be used for area targeting to work properly
 
-# OFFICE CONTROL (using office_dimmer_switch)
-- id: '1726494000001'
-  alias: Light Switch - Office Control
-  description: Control office lights with multi-button light switch
+# KITCHEN CONTROL (using kitchen_hue_switch with action attribute)
+- id: '1726494000003'
+  alias: Light Switch - Kitchen Control
+  description: Control kitchen lights with Philips Hue dimmer switch using action attribute
   variables:
-    switch_name: "office_dimmer_switch"
-    room_name: "office"
+    switch_entity: "sensor.kitchen_hue_switch_action"
+    room_name: "Kitchen"
     scenes:
-      bright: "scene.office_bright"
-      dimmed: "scene.office_dimmed"
-      read: "scene.office_read"
-      relax: "scene.office_relax"
-      nightlight: "scene.office_nightlight"
+      bright: "scene.kitchen_bright"
+      dimmed: "scene.kitchen_dimmed"
+      read: "scene.kitchen_read"
+      relax: "scene.kitchen_relax"
+      nightlight: "scene.kitchen_nightlight"
   triggers:
-  - trigger: event
-    event_type: state_changed
-    event_data:
-      entity_id: "event.{{ switch_name }}_button_1"
-  - trigger: event
-    event_type: state_changed
-    event_data:
-      entity_id: "event.{{ switch_name }}_button_2"
-  - trigger: event
-    event_type: state_changed
-    event_data:
-      entity_id: "event.{{ switch_name }}_button_3"
-  - trigger: event
-    event_type: state_changed
-    event_data:
-      entity_id: "event.{{ switch_name }}_button_4"
+  - trigger: state
+    entity_id: "sensor.kitchen_hue_switch_action"
+    not_to:
+    - ""
+    - "null"
   conditions:
   - condition: template
-    value_template: "{{ trigger.event.data.new_state.attributes.event_type in ['short_release', 'long_release'] }}"
+    value_template: "{{ trigger.to_state.state is defined and trigger.to_state.state != '' }}"
   actions:
   - choose:
-    # Button 1: Toggle room lights
+    # On Button: Always turn lights on
     - conditions:
       - condition: template
-        value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_1' }}"
+        value_template: "{{ 'on_' in trigger.to_state.state }}"
       sequence:
-      - action: script.toggle_room_lights
-        data:
-          room_name: "{{ room_name }}"
-          bright_scene: "{{ scenes.bright }}"
+      - action: light.turn_on
+        target:
+          area_id: "kitchen"
     
-    # Button 2: Dim scenes
+    # Up Button: Brighten lights
     - conditions:
       - condition: template
-        value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_2' }}"
+        value_template: "{{ 'up_' in trigger.to_state.state }}"
       sequence:
-      - action: script.cycle_dim_scenes
+      - action: light.turn_on
+        target:
+          area_id: "kitchen"
         data:
-          event_type: "{{ trigger.event.data.new_state.attributes.event_type }}"
-          dimmed_scene: "{{ scenes.dimmed }}"
-          nightlight_scene: "{{ scenes.nightlight }}"
+          brightness_step_pct: 10
     
-    # Button 3: Bright scene
+    # Down Button: Dim lights
     - conditions:
       - condition: template
-        value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_3' }}"
+        value_template: "{{ 'down_' in trigger.to_state.state }}"
       sequence:
-      - action: script.activate_room_scene
+      - action: light.turn_on
+        target:
+          area_id: "kitchen"
         data:
-          scene_entity: "{{ scenes.bright }}"
+          brightness_step_pct: -10
     
-    # Button 4: Special scenes
+    # Off Button: Turn off lights or dim
     - conditions:
       - condition: template
-        value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_4' }}"
+        value_template: "{{ 'off_' in trigger.to_state.state }}"
       sequence:
-      - action: script.toggle_special_scenes
-        data:
-          event_type: "{{ trigger.event.data.new_state.attributes.event_type }}"
-          read_scene: "{{ scenes.read }}"
-          relax_scene: "{{ scenes.relax }}"
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: "{{ 'press_release' in trigger.to_state.state }}"
+          sequence:
+          - action: light.turn_off
+            target:
+              area_id: "kitchen"
+        - conditions:
+          - condition: template
+            value_template: "{{ 'hold' in trigger.to_state.state }}"
+          sequence:
+          - action: script.activate_room_scene
+            data:
+              scene_entity: "{{ scenes.dimmed }}"
   mode: single
-
-# LIVING ROOM CONTROL (using living_room_switch)
-- id: '1726494000002'
-  alias: Light Switch - Living Room Control
-  description: Control living room lights with multi-button light switch
-  variables:
-    switch_name: "hue_dimmer_switch_1"  # Can be any switch type: hue_dimmer_switch_1, lutron_switch_2, etc.
-    room_name: "living_room"
-    scenes:
-      bright: "scene.living_room_bright"
-      dimmed: "scene.living_room_dimmed"
-      read: "scene.living_room_read"
-      relax: "scene.living_room_relax"
-      nightlight: "scene.living_room_nightlight"
-  triggers:
-  - trigger: event
-    event_type: state_changed
-    event_data:
-      entity_id: "event.{{ switch_name }}_button_1"
-  - trigger: event
-    event_type: state_changed
-    event_data:
-      entity_id: "event.{{ switch_name }}_button_2"
-  - trigger: event
-    event_type: state_changed
-    event_data:
-      entity_id: "event.{{ switch_name }}_button_3"
-  - trigger: event
-    event_type: state_changed
-    event_data:
-      entity_id: "event.{{ switch_name }}_button_4"
-  conditions:
-  - condition: template
-    value_template: "{{ trigger.event.data.new_state.attributes.event_type in ['short_release', 'long_release'] }}"
-  actions:
-  - choose:
-    # Button 1: Toggle room lights
-    - conditions:
-      - condition: template
-        value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_1' }}"
-      sequence:
-      - action: script.toggle_room_lights
-        data:
-          room_name: "{{ room_name }}"
-          bright_scene: "{{ scenes.bright }}"
-    
-    # Button 2: Dim scenes
-    - conditions:
-      - condition: template
-        value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_2' }}"
-      sequence:
-      - action: script.cycle_dim_scenes
-        data:
-          event_type: "{{ trigger.event.data.new_state.attributes.event_type }}"
-          dimmed_scene: "{{ scenes.dimmed }}"
-          nightlight_scene: "{{ scenes.nightlight }}"
-    
-    # Button 3: Bright scene
-    - conditions:
-      - condition: template
-        value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_3' }}"
-      sequence:
-      - action: script.activate_room_scene
-        data:
-          scene_entity: "{{ scenes.bright }}"
-    
-    # Button 4: Special scenes
-    - conditions:
-      - condition: template
-        value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_4' }}"
-      sequence:
-      - action: script.toggle_special_scenes
-        data:
-          event_type: "{{ trigger.event.data.new_state.attributes.event_type }}"
-          read_scene: "{{ scenes.read }}"
-          relax_scene: "{{ scenes.relax }}"
-  mode: single
-
-###############################################################################
-# TEMPLATE FOR ADDITIONAL ROOMS
-# Copy the automation block below, uncomment, and modify the variables section
-###############################################################################
-
-# BEDROOM EXAMPLE - Uncomment and modify to add bedroom control
-# - id: '1726494000003'
-#   alias: Light Switch - Bedroom Control
-#   description: Control bedroom lights with multi-button light switch
-#   variables:
-#     switch_name: "bedroom_dimmer_switch"  # Examples: lutron_bedroom_dimmer, hue_bedroom_switch, etc.
-#     room_name: "bedroom"
-#     scenes:
-#       bright: "scene.bedroom_bright"
-#       dimmed: "scene.bedroom_dimmed"
-#       read: "scene.bedroom_read"
-#       relax: "scene.bedroom_relax"
-#       nightlight: "scene.bedroom_nightlight"
-#   triggers:
-#   - trigger: event
-#     event_type: state_changed
-#     event_data:
-#       entity_id: "event.{{ switch_name }}_button_1"
-#   - trigger: event
-#     event_type: state_changed
-#     event_data:
-#       entity_id: "event.{{ switch_name }}_button_2"
-#   - trigger: event
-#     event_type: state_changed
-#     event_data:
-#       entity_id: "event.{{ switch_name }}_button_3"
-#   - trigger: event
-#     event_type: state_changed
-#     event_data:
-#       entity_id: "event.{{ switch_name }}_button_4"
-#   conditions:
-#   - condition: template
-#     value_template: "{{ trigger.event.data.new_state.attributes.event_type in ['short_release', 'long_release'] }}"
-#   actions:
-#   - choose:
-#     # Button 1: Toggle room lights
-#     - conditions:
-#       - condition: template
-#         value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_1' }}"
-#       sequence:
-#       - action: script.toggle_room_lights
-#         data:
-#           room_name: "{{ room_name }}"
-#           bright_scene: "{{ scenes.bright }}"
-#     
-#     # Button 2: Dim scenes
-#     - conditions:
-#       - condition: template
-#         value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_2' }}"
-#       sequence:
-#       - action: script.cycle_dim_scenes
-#         data:
-#           event_type: "{{ trigger.event.data.new_state.attributes.event_type }}"
-#           dimmed_scene: "{{ scenes.dimmed }}"
-#           nightlight_scene: "{{ scenes.nightlight }}"
-#     
-#     # Button 3: Bright scene
-#     - conditions:
-#       - condition: template
-#         value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_3' }}"
-#       sequence:
-#       - action: script.activate_room_scene
-#         data:
-#           scene_entity: "{{ scenes.bright }}"
-#     
-#     # Button 4: Special scenes
-#     - conditions:
-#       - condition: template
-#         value_template: "{{ trigger.event.data.entity_id == 'event.' ~ switch_name ~ '_button_4' }}"
-#       sequence:
-#       - action: script.toggle_special_scenes
-#         data:
-#           event_type: "{{ trigger.event.data.new_state.attributes.event_type }}"
-#           read_scene: "{{ scenes.read }}"
-#           relax_scene: "{{ scenes.relax }}"
-#   mode: single
-
-###############################################################################
-# INSTRUCTIONS FOR ADDING NEW ROOMS:
-#
-# 1. Copy one of the automation blocks above
-# 2. Change the 'id' to a unique value (increment the number)
-# 3. Update the 'alias' and 'description' 
-# 4. Modify ONLY the variables section:
-#    - switch_name: The entity name of your dimmer switch (without "event." prefix)
-#    - room_name: The area/room name in Home Assistant
-#    - scenes: Update all scene entity IDs to match your room's scenes
-# 5. The triggers, conditions, and actions remain identical
-#
-# BUTTON MAPPING:
-# - Button 1: Toggle lights on/off (script.toggle_room_lights)
-# - Button 2: Dimmed scene (short) / Nightlight (long) (script.cycle_dim_scenes)
-# - Button 3: Bright scene (script.activate_room_scene)
-# - Button 4: Read scene (short) / Relax scene (long) (script.toggle_special_scenes)
-#
-# SCRIPTS USED:
-# - script.toggle_room_lights: Intelligently toggles room lights on/off
-# - script.cycle_dim_scenes: Handles dimmed/nightlight scene selection
-# - script.activate_room_scene: Simply activates any scene
-# - script.toggle_special_scenes: Handles read/relax scene selection
-#
-# REQUIREMENTS:
-# - Room must be defined as an Area in Home Assistant
-# - Light entities must be assigned to the correct area
-# - Scene entities must exist for the room
-# - Switch/dimmer must be connected and provide button event entities
-#   (via zigbee2mqtt for Hue/Zigbee, or directly for Lutron/Z-Wave switches)
-# - Scripts must be defined in scripts/ directory (already included)
-###############################################################################
