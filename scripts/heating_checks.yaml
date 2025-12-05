@@ -25,10 +25,20 @@ check_heating_zone_health:
     temperature_entity:
       description: "Temperature sensor entity ID"
       example: "sensor.heating_zone_6_outlet"
+    boiler_entity:
+      description: "Boiler outlet temperature sensor"
+      default: "sensor.shelly_furnace_monitor_boiler_outlet"
+      example: "sensor.shelly_furnace_monitor_boiler_outlet"
+    max_temp_diff:
+      description: "Maximum allowed difference between boiler and zone temperature"
+      default: 25
+      example: 25
   sequence:
-    # Capture start temp
+    # Capture start temp and set defaults
     - variables:
         start_temp: "{{ states(temperature_entity) | float(0) }}"
+        boiler_sensor: "{{ boiler_entity | default('sensor.shelly_furnace_monitor_boiler_outlet') }}"
+        allowed_diff: "{{ max_temp_diff | default(25) | float }}"
     
     # Wait 5 minutes
     - delay:
@@ -41,11 +51,22 @@ check_heating_zone_health:
         {{ is_state(call_for_heat_entity, 'on') and 
            (now() - states[call_for_heat_entity].last_changed).total_seconds() > 240 }}
            
-    # Check temperature rise
+    # Check for failure:
+    # 1. Temperature failed to rise by 5°F (and is not already hot)
+    # 2. OR Large difference between Boiler Outlet and Zone Outlet (indicating flow issue)
     - condition: template
       value_template: >
         {% set current_temp = states(temperature_entity) | float(0) %}
-        {{ (current_temp - start_temp < 5) and (current_temp < 130) }}
+        {% set boiler_temp = states(boiler_sensor) | float(0) %}
+        {% set temp_diff = boiler_temp - current_temp %}
+        
+        {# Fail if no rise #}
+        {% set no_rise = (current_temp - start_temp < 5) and (current_temp < 130) %}
+        
+        {# Fail if boiler is hot but zone is cold (large delta) #}
+        {% set large_delta = (boiler_temp > 140) and (temp_diff > allowed_diff) %}
+        
+        {{ no_rise or large_delta }}
         
     # Notify Dashboard
     - action: notify.persistent_notification
@@ -54,13 +75,15 @@ check_heating_zone_health:
         message: >
           ⚠️ **Heating Failure Detected**
           
-          {{ zone_name }} has been calling for heat for 5 minutes without temperature rise.
+          {{ zone_name }} has been calling for heat for 5 minutes.
           
-          - Start: {{ start_temp }}°F
-          - Current: {{ states(temperature_entity) }}°F
+          **Status:**
+          - Zone Temp: {{ states(temperature_entity) }}°F (Start: {{ start_temp }}°F)
+          - Boiler Temp: {{ states(boiler_sensor) }}°F
+          - Difference: {{ (states(boiler_sensor)|float(0) - states(temperature_entity)|float(0))|round(1) }}°F
           
     # Notify Mobile Devices
     - action: notify.notify
       data:
         title: "Heating Alert: {{ zone_name }}"
-        message: "{{ zone_name }} failure detected! Temp: {{ states(temperature_entity) }}°F"
+        message: "{{ zone_name }} failure! Zone: {{ states(temperature_entity) }}°F | Boiler: {{ states(boiler_sensor) }}°F"
