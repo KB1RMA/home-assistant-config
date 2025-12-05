@@ -1,0 +1,66 @@
+# Heating System Health Checks
+#
+# This script monitors a heating zone to ensure it is actually heating up when calling for heat.
+# It is designed to detect failures like a stuck valve, failed pump, or air lock.
+#
+# Logic Flow:
+# 1. Triggered when a zone calls for heat (via automation).
+# 2. Captures the starting temperature of the zone's outlet.
+# 3. Waits for 5 minutes to allow the system to heat up.
+# 4. Verifies the zone is STILL calling for heat (and has been continuously).
+# 5. Checks if the temperature has risen by at least 5°F.
+# 6. If temp hasn't risen (and isn't already hot), sends an alert.
+
+check_heating_zone_health:
+  alias: "Check Heating Zone Health"
+  description: "Monitors a heating zone for failure to heat up"
+  mode: parallel
+  fields:
+    zone_name:
+      description: "Name of the zone"
+      example: "Zone 6"
+    call_for_heat_entity:
+      description: "Binary sensor entity ID"
+      example: "binary_sensor.boiler_zone_6_call_for_heat"
+    temperature_entity:
+      description: "Temperature sensor entity ID"
+      example: "sensor.heating_zone_6_outlet"
+  sequence:
+    # Capture start temp
+    - variables:
+        start_temp: "{{ states(temperature_entity) | float(0) }}"
+    
+    # Wait 5 minutes
+    - delay:
+        minutes: 5
+        
+    # Check if still calling for heat AND has been for at least 4 minutes (240 seconds)
+    # This prevents false alarms if the zone turned off and back on during the wait
+    - condition: template
+      value_template: >
+        {{ is_state(call_for_heat_entity, 'on') and 
+           (now() - states[call_for_heat_entity].last_changed).total_seconds() > 240 }}
+           
+    # Check temperature rise
+    - condition: template
+      value_template: >
+        {% set current_temp = states(temperature_entity) | float(0) %}
+        {{ (current_temp - start_temp < 5) and (current_temp < 130) }}
+        
+    # Notify Dashboard
+    - action: notify.persistent_notification
+      data:
+        title: "Heating Alert: {{ zone_name }}"
+        message: >
+          ⚠️ **Heating Failure Detected**
+          
+          {{ zone_name }} has been calling for heat for 5 minutes without temperature rise.
+          
+          - Start: {{ start_temp }}°F
+          - Current: {{ states(temperature_entity) }}°F
+          
+    # Notify Mobile Devices
+    - action: notify.notify
+      data:
+        title: "Heating Alert: {{ zone_name }}"
+        message: "{{ zone_name }} failure detected! Temp: {{ states(temperature_entity) }}°F"

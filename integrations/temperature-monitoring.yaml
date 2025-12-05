@@ -1,0 +1,127 @@
+# Temperature Monitoring Sensors
+# Template sensors for monitoring and comparing temperature readings
+
+- sensor:
+  # Boiler Temperature Difference Sensor
+  - name: "Boiler Delta T"
+    unique_id: boiler_temperature_difference
+    unit_of_measurement: "°F"
+    device_class: temperature
+    state_class: measurement
+    state: >
+      {% set outlet_temp = states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) %}
+      {% set return_temp = states('sensor.shelly_furnace_monitor_boiler_return') | float(0) %}
+      {% if outlet_temp > 0 and return_temp > 0 %}
+        {{ (outlet_temp - return_temp) | round(1) }}
+      {% else %}
+        {{ states('sensor.boiler_temperature_difference') | float(0) }}
+      {% endif %}
+    attributes:
+      outlet_temperature: >
+        {{ states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) }}
+      return_temperature: >
+        {{ states('sensor.shelly_furnace_monitor_boiler_return') | float(0) }}
+      temperature_delta: >
+        {% set outlet_temp = states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) %}
+        {% set return_temp = states('sensor.shelly_furnace_monitor_boiler_return') | float(0) %}
+        {% if outlet_temp > 0 and return_temp > 0 %}
+          {% if outlet_temp > return_temp %}
+            {{ "Outlet is " + (outlet_temp - return_temp) | round(1) | string + "°F warmer than return" }}
+          {% elif return_temp > outlet_temp %}
+            {{ "Return is " + (return_temp - outlet_temp) | round(1) | string + "°F warmer than outlet" }}
+          {% else %}
+            {{ "Temperatures are equal" }}
+          {% endif %}
+        {% else %}
+          {{ "Insufficient data" }}
+        {% endif %}
+      status: >
+        {% set outlet_temp = states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) %}
+        {% set return_temp = states('sensor.shelly_furnace_monitor_boiler_return') | float(0) %}
+        {% set diff = (outlet_temp - return_temp) | abs %}
+        {% if outlet_temp == 0 or return_temp == 0 %}
+          {{ "No Data" }}
+        {% elif diff < 5 %}
+          {{ "Normal" }}
+        {% elif diff < 15 %}
+          {{ "Moderate Difference" }}
+        {% else %}
+          {{ "Large Difference" }}
+        {% endif %}
+      efficiency_indicator: >
+        {% set outlet_temp = states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) %}
+        {% set return_temp = states('sensor.shelly_furnace_monitor_boiler_return') | float(0) %}
+        {% set diff = outlet_temp - return_temp %}
+        {% if outlet_temp == 0 or return_temp == 0 %}
+          {{ "Unknown" }}
+        {% elif diff > 20 %}
+          {{ "Good Heat Transfer" }}
+        {% elif diff > 10 %}
+          {{ "Moderate Heat Transfer" }}
+        {% elif diff > 0 %}
+          {{ "Low Heat Transfer" }}
+        {% else %}
+          {{ "Reverse Flow or Error" }}
+        {% endif %}
+
+  # Heating Zone 6 Temperature Difference Sensor
+  - name: "Heating Zone 6 Delta T"
+    unique_id: heating_zone_6_temperature_difference
+    unit_of_measurement: "°F"
+    device_class: temperature
+    state_class: measurement
+    state: >
+      {% set outlet_temp = states('sensor.heating_zone_6_outlet') | float(0) %}
+      {% set return_temp = states('sensor.heating_zone_6_return') | float(0) %}
+      {% if outlet_temp > 0 and return_temp > 0 %}
+        {{ (outlet_temp - return_temp) | round(1) }}
+      {% else %}
+        {{ states('sensor.heating_zone_6_temperature_difference') | float(0) }}
+      {% endif %}
+    attributes:
+      outlet_temperature: >
+        {{ states('sensor.heating_zone_6_outlet') | float(0) }}
+      return_temperature: >
+        {{ states('sensor.heating_zone_6_return') | float(0) }}
+      temperature_delta: >
+        {% set outlet_temp = states('sensor.heating_zone_6_outlet') | float(0) %}
+        {% set return_temp = states('sensor.heating_zone_6_return') | float(0) %}
+        {% if outlet_temp > 0 and return_temp > 0 %}
+          {% if outlet_temp > return_temp %}
+            {{ "Outlet is " + (outlet_temp - return_temp) | round(1) | string + "°F warmer than return" }}
+          {% elif return_temp > outlet_temp %}
+            {{ "Return is " + (return_temp - outlet_temp) | round(1) | string + "°F warmer than outlet" }}
+          {% else %}
+            {{ "Temperatures are equal" }}
+          {% endif %}
+        {% else %}
+          {{ "Insufficient data" }}
+        {% endif %}
+      status: >
+        {% set outlet_temp = states('sensor.heating_zone_6_outlet') | float(0) %}
+        {% set return_temp = states('sensor.heating_zone_6_return') | float(0) %}
+        {% set diff = (outlet_temp - return_temp) | abs %}
+        {% if outlet_temp == 0 or return_temp == 0 %}
+          {{ "No Data" }}
+        {% elif diff < 3 %}
+          {{ "Normal" }}
+        {% elif diff < 10 %}
+          {{ "Moderate Difference" }}
+        {% else %}
+          {{ "Large Difference" }}
+        {% endif %}
+      efficiency_indicator: >
+        {% set outlet_temp = states('sensor.heating_zone_6_outlet') | float(0) %}
+        {% set return_temp = states('sensor.heating_zone_6_return') | float(0) %}
+        {% set diff = outlet_temp - return_temp %}
+        {% if outlet_temp == 0 or return_temp == 0 %}
+          {{ "Unknown" }}
+        {% elif diff > 15 %}
+          {{ "Good Heat Transfer" }}
+        {% elif diff > 8 %}
+          {{ "Moderate Heat Transfer" }}
+        {% elif diff > 0 %}
+          {{ "Low Heat Transfer" }}
+        {% else %}
+          {{ "Reverse Flow or Error" }}
+        {% endif %}

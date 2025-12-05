@@ -1,0 +1,14 @@
+- id: 'heating_zone_6_prover'
+  alias: "Heating Zone 6 - Failure Prover"
+  description: "Alerts if the heating zone calls for heat but temperature does not rise."
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.boiler_zone_6_call_for_heat
+      to: "on"
+  actions:
+    - action: script.check_heating_zone_health
+      data:
+        zone_name: "Zone 6"
+        call_for_heat_entity: "binary_sensor.boiler_zone_6_call_for_heat"
+        temperature_entity: "sensor.heating_zone_6_outlet"

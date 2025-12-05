@@ -36,7 +36,7 @@ automation manual: !include_dir_merge_list automations/
 multiscrape: !include integrations/multiscrape.yaml
 
 # Gas cost tracking and rate monitoring
-template: !include integrations/gas-cost-templates.yaml
+template: !include_dir_merge_list integrations/
 input_number: !include integrations/gas-input-helpers.yaml
 
 google_assistant:

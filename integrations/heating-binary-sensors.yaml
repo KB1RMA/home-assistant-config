@@ -1,0 +1,12 @@
+# Heating System Binary Sensors
+# Template sensors for heating system status with debouncing
+
+- binary_sensor:
+    - name: "Boiler Zone 6 Call for Heat"
+      unique_id: boiler_zone_6_debounced
+      device_class: running
+      state: >
+        {{ is_state('binary_sensor.boiler_zone_6', 'on') }}
+      # Debounce the signal to handle erratic behavior
+      delay_on: "00:00:30"
+      delay_off: "00:00:30"

@@ -47,25 +47,25 @@
         target:
           area_id: "kitchen"
     
-    # Up Button: Brighten lights
+    # Up Button: Brighten dimmable light only
     - conditions:
       - condition: template
         value_template: "{{ 'up_' in trigger.to_state.state }}"
       sequence:
       - action: light.turn_on
         target:
-          area_id: "kitchen"
+          entity_id: "light.kitchen_table_chandelier"
         data:
           brightness_step_pct: 10
     
-    # Down Button: Dim lights
+    # Down Button: Dim dimmable light only
     - conditions:
       - condition: template
         value_template: "{{ 'down_' in trigger.to_state.state }}"
       sequence:
       - action: light.turn_on
         target:
-          area_id: "kitchen"
+          entity_id: "light.kitchen_table_chandelier"
         data:
           brightness_step_pct: -10
     
