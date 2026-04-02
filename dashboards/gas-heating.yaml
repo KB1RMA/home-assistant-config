@@ -1,0 +1,155 @@
+title: Gas & Heating
+views:
+  - type: sections
+    title: Gas Billing
+    path: gas-billing
+    icon: mdi:fire
+    max_columns: 3
+    sections:
+
+      # ── KPI tiles ────────────────────────────────────────────────────────────
+      - type: grid
+        column_span: 3
+        columns: 4
+        cards:
+          - type: tile
+            entity: sensor.current_month_gas_consumption_trend
+            name: This Month Usage
+            icon: mdi:meter-gas-outline
+          - type: tile
+            entity: sensor.current_month_gas_cost
+            name: Spent So Far
+            icon: mdi:currency-usd
+          - type: tile
+            entity: sensor.projected_monthly_gas_cost
+            name: Projected Bill
+            icon: mdi:calendar-month
+          - type: tile
+            entity: sensor.estimated_monthly_gas_cost
+            name: Last Month Bill
+            icon: mdi:receipt-text-outline
+
+      # ── Consumption history ───────────────────────────────────────────────────
+      - type: grid
+        column_span: 3
+        cards:
+          - type: statistics-graph
+            title: Monthly Gas Consumption (ft³)
+            entities:
+              - entity: sensor.gas_meter_consumption_15694770
+                name: Gas Used
+            period: month
+            stat_types:
+              - change
+            chart_type: bar
+            days_to_show: 365
+
+      # ── Last month breakdown ──────────────────────────────────────────────────
+      - type: grid
+        column_span: 1
+        cards:
+          - type: markdown
+            title: Last Month Breakdown
+            content: |-
+              | | |
+              |:--|--:|
+              | Consumption | {{ state_attr('sensor.estimated_monthly_gas_cost', 'last_month_consumption_therms') }} therms |
+              | | |
+              | Delivery charges | ${{ state_attr('sensor.estimated_monthly_gas_cost', 'estimated_delivery_cost') }} |
+              | Supply charges | ${{ state_attr('sensor.estimated_monthly_gas_cost', 'estimated_supply_cost') }} |
+              | Minimum charge | ${{ state_attr('sensor.estimated_monthly_gas_cost', 'minimum_charge') }} |
+              {%- if state_attr('sensor.estimated_monthly_gas_cost', 'ma_winter_bill_relief_applied') %}
+              | ❄️ MA Winter Relief | −10% |
+              {%- endif %}
+              | Paperless credit | −${{ state_attr('sensor.estimated_monthly_gas_cost', 'paperless_credit') }} |
+              | | |
+              | **Estimated total** | **${{ states('sensor.estimated_monthly_gas_cost') }}** |
+
+      # ── Current rates ─────────────────────────────────────────────────────────
+      - type: grid
+        column_span: 1
+        cards:
+          - type: markdown
+            title: Current Rates — R-3B (Boston)
+            content: |-
+              | Component | Rate |
+              |:--|--:|
+              | Delivery *(scraped)* | ${{ state_attr('sensor.nationalgrid_gas_delivery_rate', 'gas_delivery_charge') }}/therm |
+              | Dist. Adj. R-3B *(scraped)* | ${{ state_attr('sensor.nationalgrid_gas_delivery_rate', 'distribution_adjustment_r3b') }}/therm |
+              | **Total Delivery** | **${{ states('sensor.nationalgrid_gas_delivery_rate') }}/therm** |
+              | Supply *(manual)* | ${{ states('input_number.gas_supply_rate') }}/therm |
+              | **Combined Rate** | **${{ (states('sensor.nationalgrid_gas_delivery_rate') | float(0) + states('input_number.gas_supply_rate') | float(0)) | round(4) }}/therm** |
+              | | |
+              | Therm factor | {{ states('input_number.gas_therm_factor') }} therms/CCF |
+              | Customer charge / 30 days | ${{ states('sensor.nationalgrid_gas_customer_charge') }} |
+              | Prorated minimum | ${{ states('input_number.gas_customer_charge') }} |
+              | Paperless credit | −${{ states('input_number.gas_paperless_credit') }} |
+
+              *Scraped: {{ state_attr('sensor.nationalgrid_gas_delivery_rate', 'last_scraped') | as_timestamp | timestamp_custom('%-m/%-d/%Y %-I:%M %p') if state_attr('sensor.nationalgrid_gas_delivery_rate', 'last_scraped') else 'unknown' }}*
+
+      # ── Helpers for manual rate updates ──────────────────────────────────────
+      - type: grid
+        column_span: 1
+        cards:
+          - type: entities
+            title: Update After Each Bill
+            entities:
+              - entity: input_number.gas_supply_rate
+                name: Supply Rate
+                icon: mdi:gas-burner
+              - entity: input_number.gas_therm_factor
+                name: Therm Factor
+                icon: mdi:calculator
+              - entity: input_number.gas_customer_charge
+                name: Prorated Minimum Charge
+                icon: mdi:cash
+              - entity: input_number.gas_paperless_credit
+                name: Paperless Credit
+                icon: mdi:email-check-outline
+
+  # ── Rate History view ────────────────────────────────────────────────────────
+  - type: sections
+    title: Rate History
+    path: rate-history
+    icon: mdi:chart-line
+    max_columns: 3
+    sections:
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: markdown
+            content: |-
+              **National Grid R-3B — Rate Schedule**
+              Delivery rates change **quarterly** (Jan, Apr, Jul, Oct). Supply (Default Service) changes **monthly**. Rates are scraped automatically every 2 weeks; update `input_number.gas_supply_rate` after each bill.
+
+      - type: grid
+        column_span: 1
+        cards:
+          - type: history-graph
+            title: Combined Rate (Delivery + Supply)
+            entities:
+              - entity: sensor.gas_combined_rate
+                name: "$/therm"
+            hours_to_show: 8760
+            logarithmic_scale: false
+
+      - type: grid
+        column_span: 1
+        cards:
+          - type: history-graph
+            title: Delivery Rate (scraped)
+            entities:
+              - entity: sensor.nationalgrid_gas_delivery_rate
+                name: Delivery $/therm
+            hours_to_show: 8760
+
+      - type: grid
+        column_span: 1
+        cards:
+          - type: history-graph
+            title: Supply Rate (manual)
+            entities:
+              - entity: input_number.gas_supply_rate
+                name: Supply $/therm
+            hours_to_show: 8760

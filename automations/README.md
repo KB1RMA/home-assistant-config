@@ -14,7 +14,7 @@ Comprehensive automation for detecting and responding to gas rate changes.
 **Purpose**: Automatically notify when National Grid gas rates change
 
 **Triggers:**
-- When `sensor.national_grid_gas_tariff_last_updated` state changes
+- When `sensor.nationalgrid_gas_tariff_updated` state changes
 - When any multiscrape rate sensor becomes available after being unavailable
 - When `sensor.gas_rate_change_monitor` detects significant changes
 
@@ -68,10 +68,10 @@ Comprehensive automation for detecting and responding to gas rate changes.
 ## Integration Points
 
 ### **Sensor Dependencies:**
-- `sensor.national_grid_gas_tariff_last_updated` - Primary trigger
-- `sensor.national_grid_gas_delivery_rate` - Rate data
-- `sensor.national_grid_gas_supply_rate` - Rate data
-- `sensor.national_grid_gas_customer_charge` - Rate data
+- `sensor.nationalgrid_gas_tariff_updated` - Primary trigger
+- `sensor.nationalgrid_gas_delivery_rate` - Rate data
+- `input_number.gas_supply_rate` - Supply rate (manual, updated from bill)
+- `sensor.nationalgrid_gas_customer_charge` - Rate data
 - `sensor.gas_rate_change_monitor` - System status
 
 ### **External Dependencies:**
@@ -104,7 +104,7 @@ You could add automations for:
 1. Check that Home Assistant notification service is configured
 2. Verify multiscrape sensors are updating properly
 3. Check automation traces in Home Assistant
-4. Ensure `sensor.national_grid_gas_tariff_last_updated` is functioning
+4. Ensure `sensor.nationalgrid_gas_tariff_updated` is functioning
 
 ### If getting too many notifications:
 1. Check the condition logic in the automation
