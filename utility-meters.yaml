@@ -2,9 +2,7 @@
 # Tracks usage cycles and resets for various meters
 
 gas_utility:
-  source: sensor.gas_meter_consumption
-  # Replace with daily|monthly|bimonthly, etc to have usage reset rather 
-  # than always incrementing (as some meters do)
+  source: sensor.gas_meter_consumption_15694770
   cycle: monthly
 
 water_utility:

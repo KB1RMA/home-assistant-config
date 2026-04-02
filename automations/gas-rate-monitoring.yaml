@@ -8,7 +8,7 @@
     notification_title: "National Grid Gas Rates"
   triggers:
   - trigger: state
-    entity_id: sensor.national_grid_gas_tariff_last_updated
+    entity_id: sensor.nationalgrid_gas_tariff_updated
     not_from:
       - "unknown"
       - "unavailable"
@@ -17,28 +17,23 @@
       - "unavailable"
     for:
       minutes: 5  # Wait 5 minutes to ensure it's not a startup glitch
-  - trigger: state
-    entity_id: sensor.gas_rate_change_monitor
-    attribute: current_tariff_version
-    for:
-      minutes: 5
   # Monitor actual rate changes
   - trigger: state
-    entity_id: sensor.national_grid_gas_delivery_rate
+    entity_id: sensor.nationalgrid_gas_delivery_rate
     for:
       minutes: 5
   - trigger: state
-    entity_id: sensor.national_grid_gas_supply_rate
+    entity_id: input_number.gas_supply_rate
     for:
       minutes: 5
   - trigger: state
-    entity_id: sensor.national_grid_gas_customer_charge
+    entity_id: sensor.nationalgrid_gas_customer_charge
     for:
       minutes: 5
   conditions:
   - condition: template
     value_template: >
-      {{ states('sensor.national_grid_gas_tariff_last_updated') not in ['unknown', 'unavailable'] }}
+      {{ states('sensor.nationalgrid_gas_tariff_updated') not in ['unknown', 'unavailable'] }}
   actions:
   - action: notify.persistent_notification
     data:
@@ -47,19 +42,19 @@
         🏭 **Gas Rate Change Detected!**
         
         **Tariff Information:**
-        - Last Updated: {{ states('sensor.national_grid_gas_tariff_last_updated') }}
-        - Rate Schedule: {{ state_attr('sensor.national_grid_gas_tariff_last_updated', 'rate_schedule') | default('R-3C - Residential Heating Colonial') }}
-        - Tariff Version: {{ state_attr('sensor.national_grid_gas_tariff_last_updated', 'tariff_version') | default('Check website') }}
+        - Last Updated: {{ states('sensor.nationalgrid_gas_tariff_updated') }}
+        - Rate Schedule: {{ state_attr('sensor.nationalgrid_gas_tariff_updated', 'rate_schedule') | default('R-3C - Residential Heating Colonial') }}
+        - Tariff Version: {{ state_attr('sensor.nationalgrid_gas_tariff_updated', 'tariff_version') | default('Check website') }}
         
-        **Current Extracted Rates:**
-        - Delivery Rate: ${{ states('sensor.national_grid_gas_delivery_rate') }}/CCF ({{ state_attr('sensor.national_grid_gas_delivery_rate', 'rate_source') }})
-        - Supply Rate: ${{ states('sensor.national_grid_gas_supply_rate') }}/CCF ({{ state_attr('sensor.national_grid_gas_supply_rate', 'rate_source') }})
-        - Customer Charge: ${{ states('sensor.national_grid_gas_customer_charge') }}/month
+        **Current Rates:**
+        - Delivery Rate: ${{ states('sensor.nationalgrid_gas_delivery_rate') }}/therm ({{ state_attr('sensor.nationalgrid_gas_delivery_rate', 'rate_source') }})
+        - Supply Rate: ${{ states('input_number.gas_supply_rate') }}/therm (manual — update from bill)
+        - Customer Charge: ${{ states('sensor.nationalgrid_gas_customer_charge') }}/month
         
         **Automation Status:**
         {{ state_attr('sensor.gas_rate_change_monitor', 'automation_status') }}
         
-        **Source:** {{ state_attr('sensor.national_grid_gas_tariff_last_updated', 'source_url') | default('https://www.nationalgridus.com/MA-Gas-Home/Service-Rates/') }}
+        **Source:** {{ state_attr('sensor.nationalgrid_gas_tariff_updated', 'source_url') | default('https://www.nationalgridus.com/MA-Gas-Home/Service-Rates/') }}
         
         No manual action required - rates are automatically extracted!
 

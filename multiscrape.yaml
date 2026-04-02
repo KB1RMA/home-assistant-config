@@ -1,0 +1,132 @@
+# National Grid Gas Delivery Rates Scraper - Re-enabled with improved error handling
+# This attempts to extract current rates from National Grid's website
+# Falls back to realistic values if scraping fails
+- resource: 'https://www.nationalgridus.com/MA-Gas-Home/Tariff-Provisions/'
+  scan_interval: 1209600  # Check every 2 weeks (14 days * 24 hours * 60 minutes * 60 seconds)
+  headers:
+    User-Agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  sensor:
+    # Extract tariff information from the table
+    - name: "National Grid Gas Tariff Last Updated"
+      unique_id: nationalgrid_gas_tariff_updated
+      select: 'table tr:contains("Residential Heating – Colonial Division (R-3C)") td:last-child'
+      value_template: >
+        {% if value is defined and value not in ["", "unknown", "unavailable", none] %}
+          {{ value | trim }}
+        {% else %}
+          {{ "Check manually - October 1, 2024" }}
+        {% endif %}
+      attributes:
+        - name: "tariff_version"
+          select: 'table tr:contains("Residential Heating – Colonial Division (R-3C)") td:nth-child(2)'
+          value_template: >
+            {% if value is defined and value not in ["", "unknown", "unavailable", none] %}
+              {{ value | trim }}
+            {% else %}
+              {{ "66.4" }}
+            {% endif %}
+        - name: "rate_schedule"
+          value_template: "R-3C - Residential Heating Colonial Division"
+        - name: "source_url"
+          value_template: "https://www.nationalgridus.com/MA-Gas-Home/Tariff-Provisions/"
+
+# Extract delivery rates from the Service Rates page.
+# The page is static HTML — curl-verified to contain the rate tables.
+# The R-3B/R-3C section is the 3rd .accordion div inside .accordion-component.
+# Supply rate (Gas Supply Peak) is NOT published on this page — use input_number.gas_supply_rate.
+- resource: 'https://www.nationalgridus.com/MA-Gas-Home/Service-Rates/'
+  scan_interval: 1209600  # Refresh every 2 weeks (rates change quarterly)
+  headers:
+    User-Agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  sensor:
+    - name: "National Grid Gas Delivery Rate"
+      unique_id: nationalgrid_gas_delivery_rate
+      # Targets the R-3B/R-3C accordion section (3rd accordion on the page).
+      # regex_findall('\$(\d+\.\d+)/Therm') yields [delivery_R3B, delivery_R3C, dist_adj_R3B, dist_adj_R3C]
+      # Total R-3B delivery = rates[0] (Gas Delivery Charge) + rates[2] (Distribution Adjustment R-3B)
+      # e.g. $0.9544 + $0.5572 = $1.5116/Therm
+      select: '.accordion-component > div:nth-of-type(3)'
+      value_template: >
+        {% set fallback = 1.5118 %}
+        {% if value is defined and value not in ["", "unknown", "unavailable", none] %}
+          {% set rates = value | regex_findall('\$(\d+\.\d+)/Therm') %}
+          {% if rates | length >= 3 %}
+            {% set delivery = rates[0] | float(0) %}
+            {% set dist_adj = rates[2] | float(0) %}
+            {% if delivery > 0.5 and dist_adj > 0.1 %}
+              {{ (delivery + dist_adj) | round(4) }}
+            {% else %}
+              {{ fallback }}
+            {% endif %}
+          {% else %}
+            {{ fallback }}
+          {% endif %}
+        {% else %}
+          {{ fallback }}
+        {% endif %}
+      unit_of_measurement: "USD/therm"
+      device_class: monetary
+      state_class: measurement
+      attributes:
+        - name: "rate_source"
+          value_template: >
+            {% set rates = value | regex_findall('\$(\d+\.\d+)/Therm') if value is defined else [] %}
+            {% if rates | length >= 3 %}
+              {{ "Extracted from National Grid website (Gas Delivery Charge + Distribution Adjustment R-3B)" }}
+            {% else %}
+              {{ "Fallback rate — check input_number.gas_delivery_rate" }}
+            {% endif %}
+        - name: "gas_delivery_charge"
+          select: '.accordion-component > div:nth-of-type(3) table tbody tr:nth-child(2) td:nth-child(2)'
+          value_template: >
+            {{ value | regex_findall('\$(\d+\.\d+)') | first | float(0.9544) if value is defined else 0.9544 }}
+        - name: "distribution_adjustment_r3b"
+          select: '.accordion-component > div:nth-of-type(3) table tbody tr:nth-child(3) td:nth-child(2)'
+          value_template: >
+            {{ value | regex_findall('\$(\d+\.\d+)') | first | float(0.5572) if value is defined else 0.5572 }}
+        - name: "last_scraped"
+          value_template: "{{ now().isoformat() }}"
+        - name: "rate_schedule"
+          value_template: "R-3B - Residential Heating Boston"
+        - name: "fallback_value"
+          value_template: "1.5118"
+
+    - name: "National Grid Gas Customer Charge"
+      unique_id: nationalgrid_gas_customer_charge
+      # Same R-3B/R-3C section. Customer Charge = $12.00/30 days (prorated on actual bill by billing days).
+      select: '.accordion-component > div:nth-of-type(3)'
+      value_template: >
+        {% set fallback = 12.00 %}
+        {% if value is defined and value not in ["", "unknown", "unavailable", none] %}
+          {% set charges = value | regex_findall('\$(\d+\.\d+)\s*/30 days') %}
+          {% if charges | length >= 1 %}
+            {% set charge = charges[0] | float(0) %}
+            {% if charge > 5 and charge < 50 %}
+              {{ charge }}
+            {% else %}
+              {{ fallback }}
+            {% endif %}
+          {% else %}
+            {{ fallback }}
+          {% endif %}
+        {% else %}
+          {{ fallback }}
+        {% endif %}
+      unit_of_measurement: "USD"
+      device_class: monetary
+      state_class: measurement
+      attributes:
+        - name: "rate_source"
+          value_template: >
+            {% set charges = value | regex_findall('\$(\d+\.\d+)\s*/30 days') if value is defined else [] %}
+            {% if charges | length >= 1 %}
+              {{ "Extracted from National Grid website (R-3B Customer Charge per 30 days)" }}
+            {% else %}
+              {{ "Fallback rate — check input_number.gas_customer_charge" }}
+            {% endif %}
+        - name: "note"
+          value_template: "Per-30-day charge; bills prorate by actual days (e.g. 29 days = $11.60)."
+        - name: "last_scraped"
+          value_template: "{{ now().isoformat() }}"
+        - name: "fallback_value"
+          value_template: "12.00"
