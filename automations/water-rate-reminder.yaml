@@ -1,0 +1,28 @@
+# Water Rate Update Reminder
+# City of Newburyport sets new water & sewer rates each year effective July 1
+# This automation fires on July 1 to prompt manual update of rate input_numbers
+
+- id: 'water_rate_annual_reminder'
+  alias: "Water Rates - Annual Update Reminder"
+  description: "Remind to update Newburyport water/sewer rates each July 1 (new FY start)"
+  triggers:
+  - trigger: time
+    at: "09:00:00"
+  conditions:
+  - condition: template
+    value_template: "{{ now().month == 7 and now().day == 1 }}"
+  actions:
+  - action: notify.persistent_notification
+    data:
+      title: "Water & Sewer Rates — Annual Update Due"
+      message: >
+        City of Newburyport FY rates take effect today (July 1).
+        Check the new rate schedule at:
+        https://www.cityofnewburyport.com/department-of-public-services/dps-water-division
+
+        Update these helpers if rates have changed:
+        • input_number.water_tier1_rate (currently ${{ states('input_number.water_tier1_rate') }}/CCF)
+        • input_number.water_tier2_rate (currently ${{ states('input_number.water_tier2_rate') }}/CCF)
+        • input_number.sewer_tier1_rate (currently ${{ states('input_number.sewer_tier1_rate') }}/CCF)
+        • input_number.sewer_tier2_rate (currently ${{ states('input_number.sewer_tier2_rate') }}/CCF)
+      notification_id: water_rate_annual_reminder

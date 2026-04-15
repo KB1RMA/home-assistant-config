@@ -1,0 +1,94 @@
+# Water & Sewer Rate Input Helpers
+# City of Newburyport — rates set annually effective July 1 (FY start)
+# Billing is quarterly; tier threshold is 3,000 cu ft (30 CCF) per quarter
+# Update each July when the city council sets new FY rates
+
+# FY2026 rates (effective July 1, 2025):
+#   Water:  first 3,000 cu ft → $7.53/CCF  |  3,001+ cu ft → $9.41/CCF
+#   Sewer:  first 3,000 cu ft → $11.04/CCF |  3,001+ cu ft → $13.14/CCF
+
+# Water usage rate — tier 1 (first 30 CCF per quarter)
+water_tier1_rate:
+  name: "Water Tier 1 Rate"
+  min: 0.01
+  max: 50.0
+  step: 0.01
+  initial: 7.53
+  unit_of_measurement: "USD/CCF"
+  icon: mdi:water
+  mode: box
+
+# Water usage rate — tier 2 (above 30 CCF per quarter)
+water_tier2_rate:
+  name: "Water Tier 2 Rate"
+  min: 0.01
+  max: 50.0
+  step: 0.01
+  initial: 9.41
+  unit_of_measurement: "USD/CCF"
+  icon: mdi:water-alert
+  mode: box
+
+# Sewer usage rate — tier 1 (first 30 CCF per quarter)
+sewer_tier1_rate:
+  name: "Sewer Tier 1 Rate"
+  min: 0.01
+  max: 50.0
+  step: 0.01
+  initial: 11.04
+  unit_of_measurement: "USD/CCF"
+  icon: mdi:pipe
+  mode: box
+
+# Sewer usage rate — tier 2 (above 30 CCF per quarter)
+sewer_tier2_rate:
+  name: "Sewer Tier 2 Rate"
+  min: 0.01
+  max: 50.0
+  step: 0.01
+  initial: 13.14
+  unit_of_measurement: "USD/CCF"
+  icon: mdi:pipe-valve
+  mode: box
+
+# Quarterly fixed water customer charge (WATCUSTCHG line on bill)
+water_customer_charge:
+  name: "Water Customer Charge"
+  min: 0.0
+  max: 200.0
+  step: 0.01
+  initial: 27.50
+  unit_of_measurement: "USD"
+  icon: mdi:cash
+  mode: box
+
+# Quarterly fixed sewer customer charge (SEWCUSTCHG line on bill)
+sewer_customer_charge:
+  name: "Sewer Customer Charge"
+  min: 0.0
+  max: 200.0
+  step: 0.01
+  initial: 27.50
+  unit_of_measurement: "USD"
+  icon: mdi:cash
+  mode: box
+
+# Meter snapshot stored at 01:00 for overnight leak detection (compared at 05:00)
+water_overnight_baseline:
+  name: "Water Overnight Baseline"
+  min: 0
+  max: 9999999
+  step: 0.1
+  unit_of_measurement: "gal"
+  icon: mdi:water-pump
+  mode: box
+
+# Meter snapshot stored at 00:05 for daily spike detection (compared at 23:00)
+water_daily_baseline:
+  name: "Water Daily Baseline"
+  min: 0
+  max: 9999999
+  step: 0.1
+  unit_of_measurement: "gal"
+  icon: mdi:water-pump
+  mode: box

@@ -7,7 +7,7 @@ gas_utility:
 
 water_utility:
   source: sensor.water_meter_main_total
-  cycle: monthly
+  cron: "0 0 18 2,5,8,11 *"  # Reset ~Feb 18 / May 18 / Aug 18 / Nov 18 (Newburyport billing cycle)
 
 electric_utility:
   source: sensor.electric_meter_consumption
