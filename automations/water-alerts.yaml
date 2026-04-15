@@ -1,0 +1,429 @@
+# Water Alerts & Notifications
+# Triggers on binary sensors defined in integrations/water-alert-sensors.yaml.
+# All thresholds/conditions live there — not here.
+# Notification targets: mobile_app_christophers_ipad, mobile_app_tophers_iphone
+
+# ── 1. Store baseline at 01:00 for overnight leak detection ──────────────────
+- id: 'water_overnight_baseline_store'
+  alias: "Water — Store Overnight Baseline"
+  description: "Records meter value at 1am; binary_sensor.water_overnight_leak compares against this"
+  triggers:
+    - trigger: time
+      at: "01:00:00"
+  actions:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.water_overnight_baseline
+      data:
+        value: "{{ states('sensor.water_meter_main_total') | float(0) }}"
+
+# ── 2. Overnight leak alert ───────────────────────────────────────────────────
+- id: 'water_overnight_leak_check'
+  alias: "Water — Overnight Leak Alert"
+  description: "Fires when binary_sensor.water_overnight_leak turns on (>10 gal since 1am)"
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.water_overnight_leak
+      to: "on"
+  conditions:
+    - condition: time
+      after: "01:00:00"
+      before: "08:00:00"
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Possible Water Leak Detected"
+        message: >
+          {{ ((states('sensor.water_meter_main_total') | float(0)) -
+              (states('input_number.water_overnight_baseline') | float(0))) | round(1) }} gallons
+          used since 1am. Check for a running toilet or dripping fixture.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Possible Water Leak Detected"
+        message: >
+          {{ ((states('sensor.water_meter_main_total') | float(0)) -
+              (states('input_number.water_overnight_baseline') | float(0))) | round(1) }} gallons
+          used since 1am. Check for a running toilet or dripping fixture.
+
+# ── 3. Tier 2 approach warning ────────────────────────────────────────────────
+- id: 'water_tier2_approach_warning'
+  alias: "Water — Approaching Tier 2 Threshold"
+  description: "Fires when binary_sensor.water_approaching_tier2 turns on (~25 CCF)"
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.water_approaching_tier2
+      to: "on"
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Approaching Water Tier 2"
+        message: >
+          Quarterly usage is now {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF —
+          approaching the 30 CCF tier 2 threshold. Conserve to avoid the higher
+          ${{ states('input_number.water_tier2_rate') }}/${{ states('input_number.sewer_tier2_rate') }}/CCF combined rate.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Approaching Water Tier 2"
+        message: >
+          Quarterly usage is now {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF —
+          approaching the 30 CCF tier 2 threshold. Conserve to avoid the higher
+          ${{ states('input_number.water_tier2_rate') }}/${{ states('input_number.sewer_tier2_rate') }}/CCF combined rate.
+
+# ── 4. Tier 2 entered ────────────────────────────────────────────────────────
+- id: 'water_tier2_entered'
+  alias: "Water — Entered Tier 2 Billing"
+  description: "Fires when binary_sensor.water_in_tier2 turns on (above 30 CCF)"
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.water_in_tier2
+      to: "on"
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Water Now in Tier 2"
+        message: >
+          Quarterly usage has exceeded 30 CCF
+          ({{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF).
+          Additional usage now costs
+          ${{ (states('input_number.water_tier2_rate') | float(9.41) + states('input_number.sewer_tier2_rate') | float(13.14)) | round(2) }}/CCF.
+          Projected bill: ${{ states('sensor.projected_quarterly_water_cost') }}.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Water Now in Tier 2"
+        message: >
+          Quarterly usage has exceeded 30 CCF
+          ({{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF).
+          Additional usage now costs
+          ${{ (states('input_number.water_tier2_rate') | float(9.41) + states('input_number.sewer_tier2_rate') | float(13.14)) | round(2) }}/CCF.
+          Projected bill: ${{ states('sensor.projected_quarterly_water_cost') }}.
+
+# ── 5. Projected bill exceeds $250 ───────────────────────────────────────────
+- id: 'water_projected_bill_high'
+  alias: "Water — Projected Bill High"
+  description: "Fires when binary_sensor.water_bill_high turns on (projected > $250)"
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.water_bill_high
+      to: "on"
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Water Bill Tracking High"
+        message: >
+          Projected quarterly water + sewer bill is ${{ states('sensor.projected_quarterly_water_cost') }},
+          based on {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF used so far this period.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Water Bill Tracking High"
+        message: >
+          Projected quarterly water + sewer bill is ${{ states('sensor.projected_quarterly_water_cost') }},
+          based on {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF used so far this period.
+
+# ── 6a. Meter unavailable (HA entity lost) ────────────────────────────────────
+- id: 'water_meter_offline'
+  alias: "Water — Meter Offline"
+  description: "Fires when binary_sensor.water_meter_offline has been on for 15+ minutes"
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.water_meter_offline
+      to: "on"
+      for:
+        minutes: 15
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Water Meter Offline"
+        message: "sensor.water_meter_main_total is unavailable. Check the ESPHome device and MQTT connection."
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Water Meter Offline"
+        message: "sensor.water_meter_main_total is unavailable. Check the ESPHome device and MQTT connection."
+
+# ── 6b. No usage recorded for 8h (sensor may have detached) ──────────────────
+- id: 'water_meter_no_usage'
+  alias: "Water — No Usage Detected"
+  description: >
+    Fires when binary_sensor.water_meter_frozen turns on during daytime.
+    A 10:00 time trigger catches cases where the sensor was already frozen at dawn.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.water_meter_frozen
+      to: "on"
+    - trigger: time
+      at: "10:00:00"
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.water_meter_frozen
+      state: "on"
+    - condition: time
+      after: "08:00:00"
+      before: "22:00:00"
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Water Meter — No Usage Detected"
+        message: >
+          No water usage recorded for 8+ hours (last reading:
+          {{ states('sensor.water_meter_main_total') | float(0) | round(0) }} gal).
+          Check that the sensor is still attached to the meter.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Water Meter — No Usage Detected"
+        message: >
+          No water usage recorded for 8+ hours (last reading:
+          {{ states('sensor.water_meter_main_total') | float(0) | round(0) }} gal).
+          Check that the sensor is still attached to the meter.
+
+# ── 7. Store daily baseline at 00:05 ─────────────────────────────────────────
+- id: 'water_daily_baseline_store'
+  alias: "Water — Store Daily Baseline"
+  description: "Records meter value just after midnight; binary_sensor.water_daily_spike compares against this"
+  triggers:
+    - trigger: time
+      at: "00:05:00"
+  actions:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.water_daily_baseline
+      data:
+        value: "{{ states('sensor.water_meter_main_total') | float(0) }}"
+
+# ── 8. Daily high-usage spike ─────────────────────────────────────────────────
+- id: 'water_daily_spike_check'
+  alias: "Water — Daily High Usage Alert"
+  description: "Fires when binary_sensor.water_daily_spike turns on (>150 gal today)"
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.water_daily_spike
+      to: "on"
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "High Water Usage Today"
+        message: >
+          {{ ((states('sensor.water_meter_main_total') | float(0)) -
+              (states('input_number.water_daily_baseline') | float(0))) | round(1) }} gallons
+          used today — above the 150 gal daily threshold. Check for a hose left running
+          or an irrigation issue.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "High Water Usage Today"
+        message: >
+          {{ ((states('sensor.water_meter_main_total') | float(0)) -
+              (states('input_number.water_daily_baseline') | float(0))) | round(1) }} gallons
+          used today — above the 150 gal daily threshold. Check for a hose left running
+          or an irrigation issue.
+
+
+# ── 1. Store baseline at 01:00 for overnight leak detection ──────────────────
+- id: 'water_overnight_baseline_store'
+  alias: "Water — Store Overnight Baseline"
+  description: "Records meter value at 1am for overnight leak comparison at 5am"
+  triggers:
+    - trigger: time
+      at: "01:00:00"
+  actions:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.water_overnight_baseline
+      data:
+        value: "{{ states('sensor.water_meter_main_total') | float(0) }}"
+
+# ── 2. Check for overnight leak at 05:00 ────────────────────────────────────
+- id: 'water_overnight_leak_check'
+  alias: "Water — Overnight Leak Alert"
+  description: "Alerts if more than 10 gallons used between 1am and 5am (possible leak)"
+  triggers:
+    - trigger: time
+      at: "05:00:00"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ (states('sensor.water_meter_main_total') | float(0)) -
+           (states('input_number.water_overnight_baseline') | float(0)) > 10 }}
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Possible Water Leak Detected"
+        message: >
+          {{ ((states('sensor.water_meter_main_total') | float(0)) -
+              (states('input_number.water_overnight_baseline') | float(0))) | round(1) }} gallons
+          used between 1am and 5am. Check for a running toilet or dripping fixture.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Possible Water Leak Detected"
+        message: >
+          {{ ((states('sensor.water_meter_main_total') | float(0)) -
+              (states('input_number.water_overnight_baseline') | float(0))) | round(1) }} gallons
+          used between 1am and 5am. Check for a running toilet or dripping fixture.
+
+# ── 3. Tier 2 approach warning (~25 CCF = 18,701 gal) ───────────────────────
+- id: 'water_tier2_approach_warning'
+  alias: "Water — Approaching Tier 2 Threshold"
+  description: "Warns when quarterly usage reaches 25 CCF — 83% of the 30 CCF tier 2 threshold"
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.water_utility
+      above: 18701
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Approaching Water Tier 2"
+        message: >
+          Quarterly usage is now {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF —
+          approaching the 30 CCF tier 2 threshold. Conserve to avoid the higher
+          ${{ states('input_number.water_tier2_rate') }}/${{ states('input_number.sewer_tier2_rate') }}/CCF combined rate.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Approaching Water Tier 2"
+        message: >
+          Quarterly usage is now {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF —
+          approaching the 30 CCF tier 2 threshold. Conserve to avoid the higher
+          ${{ states('input_number.water_tier2_rate') }}/${{ states('input_number.sewer_tier2_rate') }}/CCF combined rate.
+
+# ── 4. Tier 2 entered ────────────────────────────────────────────────────────
+- id: 'water_tier2_entered'
+  alias: "Water — Entered Tier 2 Billing"
+  description: "Notifies when quarterly usage crosses into tier 2 (above 30 CCF)"
+  triggers:
+    - trigger: template
+      value_template: "{{ state_attr('sensor.water_quarter_cost', 'in_tier2') | bool(false) }}"
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Water Now in Tier 2"
+        message: >
+          Quarterly usage has exceeded 30 CCF
+          ({{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF).
+          Additional usage now costs
+          ${{ (states('input_number.water_tier2_rate') | float(9.41) + states('input_number.sewer_tier2_rate') | float(13.14)) | round(2) }}/CCF.
+          Projected bill: ${{ states('sensor.projected_quarterly_water_cost') }}.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Water Now in Tier 2"
+        message: >
+          Quarterly usage has exceeded 30 CCF
+          ({{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF).
+          Additional usage now costs
+          ${{ (states('input_number.water_tier2_rate') | float(9.41) + states('input_number.sewer_tier2_rate') | float(13.14)) | round(2) }}/CCF.
+          Projected bill: ${{ states('sensor.projected_quarterly_water_cost') }}.
+
+# ── 5. Projected bill exceeds $250 ───────────────────────────────────────────
+- id: 'water_projected_bill_high'
+  alias: "Water — Projected Bill High"
+  description: "Notifies when projected quarterly water + sewer bill exceeds $250"
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.projected_quarterly_water_cost
+      above: 250
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Water Bill Tracking High"
+        message: >
+          Projected quarterly water + sewer bill is ${{ states('sensor.projected_quarterly_water_cost') }},
+          based on {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF used so far this period.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Water Bill Tracking High"
+        message: >
+          Projected quarterly water + sewer bill is ${{ states('sensor.projected_quarterly_water_cost') }},
+          based on {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF used so far this period.
+
+# ── 6a. Water meter unavailable (HA sensor lost) ─────────────────────────────
+- id: 'water_meter_offline'
+  alias: "Water — Meter Offline"
+  description: "Alerts when the water meter HA entity becomes unavailable/unknown for 15+ minutes"
+  triggers:
+    - trigger: state
+      entity_id: sensor.water_meter_main_total
+      to:
+        - "unavailable"
+        - "unknown"
+      for:
+        minutes: 15
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Water Meter Offline"
+        message: "sensor.water_meter_main_total is unavailable. Check the ESPHome device and MQTT connection."
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Water Meter Offline"
+        message: "sensor.water_meter_main_total is unavailable. Check the ESPHome device and MQTT connection."
+
+# ── 6b. No usage recorded for 8h during daytime (sensor may have detached) ───
+- id: 'water_meter_no_usage'
+  alias: "Water — No Usage Detected"
+  description: >
+    Alerts if the meter total hasn't changed for 8+ hours between 8am and 10pm.
+    The HA sensor will still be 'available' if the physical sensor detaches — this
+    catches the frozen-value case.
+  triggers:
+    - trigger: state
+      entity_id: sensor.water_meter_main_total
+      for:
+        hours: 8
+  conditions:
+    - condition: time
+      after: "08:00:00"
+      before: "22:00:00"
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "Water Meter — No Usage Detected"
+        message: >
+          No water usage has been recorded for 8+ hours (last reading:
+          {{ states('sensor.water_meter_main_total') | float(0) | round(0) }} gal).
+          Check that the sensor is still attached to the meter.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "Water Meter — No Usage Detected"
+        message: >
+          No water usage has been recorded for 8+ hours (last reading:
+          {{ states('sensor.water_meter_main_total') | float(0) | round(0) }} gal).
+          Check that the sensor is still attached to the meter.
+
+# ── 7. Store daily baseline at 00:05 ─────────────────────────────────────────
+- id: 'water_daily_baseline_store'
+  alias: "Water — Store Daily Baseline"
+  description: "Records meter value just after midnight for daily spike comparison at 23:00"
+  triggers:
+    - trigger: time
+      at: "00:05:00"
+  actions:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.water_daily_baseline
+      data:
+        value: "{{ states('sensor.water_meter_main_total') | float(0) }}"
+
+# ── 8. Daily high-usage spike check at 23:00 ─────────────────────────────────
+- id: 'water_daily_spike_check'
+  alias: "Water — Daily High Usage Alert"
+  description: "Alerts if more than 150 gallons used in a single day"
+  triggers:
+    - trigger: time
+      at: "23:00:00"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ (states('sensor.water_meter_main_total') | float(0)) -
+           (states('input_number.water_daily_baseline') | float(0)) > 150 }}
+  actions:
+    - action: notify.mobile_app_christophers_ipad
+      data:
+        title: "High Water Usage Today"
+        message: >
+          {{ ((states('sensor.water_meter_main_total') | float(0)) -
+              (states('input_number.water_daily_baseline') | float(0))) | round(1) }} gallons
+          used today — above the 150 gal daily threshold. Check for a hose left running
+          or an irrigation issue.
+    - action: notify.mobile_app_tophers_iphone
+      data:
+        title: "High Water Usage Today"
+        message: >
+          {{ ((states('sensor.water_meter_main_total') | float(0)) -
+              (states('input_number.water_daily_baseline') | float(0))) | round(1) }} gallons
+          used today — above the 150 gal daily threshold. Check for a hose left running
+          or an irrigation issue.

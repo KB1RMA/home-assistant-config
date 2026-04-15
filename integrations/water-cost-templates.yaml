@@ -1,0 +1,263 @@
+# Water & Sewer Cost Calculation Template Sensors
+# City of Newburyport, MA — FY2026 tiered quarterly billing
+# Rates: Water $7.53/$9.41 per CCF | Sewer $11.04/$13.14 per CCF
+# Tier threshold: 3,000 cu ft (30 CCF) per quarter
+# Source: sensor.water_meter_main_total (gallons, total_increasing via ESPHome)
+# Utility meter: sensor.water_utility (cron: 0 0 18 2,5,8,11 * → resets Feb 18/May 18/Aug 18/Nov 18)
+# Conversion: 1 CCF = 748.052 gallons (100 cu ft × 7.48052 gal/cu ft)
+
+- sensor:
+    # Current quarter water + sewer cost (variable usage charges + fixed customer charges)
+    - name: "Water Quarter Cost"
+      unique_id: water_quarter_cost
+      unit_of_measurement: "USD"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set quarterly_gal = states('sensor.water_utility') | float(0) %}
+        {% set quarterly_ccf = quarterly_gal / 748.052 %}
+        {% set tier1_ccf = [quarterly_ccf, 30] | min %}
+        {% set tier2_ccf = [quarterly_ccf - 30, 0] | max %}
+        {% set water_rate1 = states('input_number.water_tier1_rate') | float(7.53) %}
+        {% set water_rate2 = states('input_number.water_tier2_rate') | float(9.41) %}
+        {% set sewer_rate1 = states('input_number.sewer_tier1_rate') | float(11.04) %}
+        {% set sewer_rate2 = states('input_number.sewer_tier2_rate') | float(13.14) %}
+        {% set water_fixed = states('input_number.water_customer_charge') | float(27.50) %}
+        {% set sewer_fixed = states('input_number.sewer_customer_charge') | float(27.50) %}
+        {% set water_cost = (tier1_ccf * water_rate1) + (tier2_ccf * water_rate2) %}
+        {% set sewer_cost = (tier1_ccf * sewer_rate1) + (tier2_ccf * sewer_rate2) %}
+        {{ (water_cost + sewer_cost + water_fixed + sewer_fixed) | round(2) }}
+      attributes:
+        quarterly_consumption_gal: >
+          {{ states('sensor.water_utility') | float(0) | round(1) }}
+        quarterly_consumption_ccf: >
+          {{ (states('sensor.water_utility') | float(0) / 748.052) | round(3) }}
+        water_usage_cost: >
+          {% set quarterly_ccf = states('sensor.water_utility') | float(0) / 748.052 %}
+          {% set tier1_ccf = [quarterly_ccf, 30] | min %}
+          {% set tier2_ccf = [quarterly_ccf - 30, 0] | max %}
+          {% set r1 = states('input_number.water_tier1_rate') | float(7.53) %}
+          {% set r2 = states('input_number.water_tier2_rate') | float(9.41) %}
+          {{ ((tier1_ccf * r1) + (tier2_ccf * r2)) | round(2) }}
+        sewer_usage_cost: >
+          {% set quarterly_ccf = states('sensor.water_utility') | float(0) / 748.052 %}
+          {% set tier1_ccf = [quarterly_ccf, 30] | min %}
+          {% set tier2_ccf = [quarterly_ccf - 30, 0] | max %}
+          {% set r1 = states('input_number.sewer_tier1_rate') | float(11.04) %}
+          {% set r2 = states('input_number.sewer_tier2_rate') | float(13.14) %}
+          {{ ((tier1_ccf * r1) + (tier2_ccf * r2)) | round(2) }}
+        water_customer_charge: >
+          {{ states('input_number.water_customer_charge') | float(27.50) }}
+        sewer_customer_charge: >
+          {{ states('input_number.sewer_customer_charge') | float(27.50) }}
+        in_tier2: >
+          {{ (states('sensor.water_utility') | float(0) / 748.052) > 30 }}
+        tier2_overage_ccf: >
+          {{ [(states('sensor.water_utility') | float(0) / 748.052) - 30, 0] | max | round(3) }}
+        water_tier1_rate: >
+          {{ states('input_number.water_tier1_rate') | float(7.53) }}
+        water_tier2_rate: >
+          {{ states('input_number.water_tier2_rate') | float(9.41) }}
+        sewer_tier1_rate: >
+          {{ states('input_number.sewer_tier1_rate') | float(11.04) }}
+        sewer_tier2_rate: >
+          {{ states('input_number.sewer_tier2_rate') | float(13.14) }}
+        note: >
+          {{ "Tiered quarterly billing ~Feb 18/May 18/Aug 18/Nov 18. Tier 2 activates above 30 CCF per quarter." }}
+
+    # Projected full-quarter bill (usage extrapolated to end of billing period)
+    # Billing periods reset on: Feb 18 / May 18 / Aug 18 / Nov 18 (matching cron)
+    - name: "Projected Quarterly Water Cost"
+      unique_id: projected_quarterly_water_cost
+      unit_of_measurement: "USD"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set current_gal = states('sensor.water_utility') | float(0) %}
+        {% set today = now().date() %}
+        {% set year = today.year %}
+        {# Build list of reset dates spanning prev Nov 18 through next Feb 18 #}
+        {% set resets = [
+          today.replace(year=year-1, month=11, day=18),
+          today.replace(month=2, day=18),
+          today.replace(month=5, day=18),
+          today.replace(month=8, day=18),
+          today.replace(month=11, day=18),
+          today.replace(year=year+1, month=2, day=18)
+        ] %}
+        {% set ns = namespace(start=resets[0], end=resets[1]) %}
+        {% for i in range(resets | length - 1) %}
+          {% if resets[i] <= today < resets[i+1] %}
+            {% set ns.start = resets[i] %}
+            {% set ns.end = resets[i+1] %}
+          {% endif %}
+        {% endfor %}
+        {% set days_in_period = (ns.end - ns.start).days %}
+        {% set days_elapsed = (today - ns.start).days + 1 %}
+        {% set projected_gal = (current_gal * days_in_period / days_elapsed) if days_elapsed > 0 else 0 %}
+        {% set projected_ccf = projected_gal / 748.052 %}
+        {% set tier1_ccf = [projected_ccf, 30] | min %}
+        {% set tier2_ccf = [projected_ccf - 30, 0] | max %}
+        {% set water_rate1 = states('input_number.water_tier1_rate') | float(7.53) %}
+        {% set water_rate2 = states('input_number.water_tier2_rate') | float(9.41) %}
+        {% set sewer_rate1 = states('input_number.sewer_tier1_rate') | float(11.04) %}
+        {% set sewer_rate2 = states('input_number.sewer_tier2_rate') | float(13.14) %}
+        {% set water_fixed = states('input_number.water_customer_charge') | float(27.50) %}
+        {% set sewer_fixed = states('input_number.sewer_customer_charge') | float(27.50) %}
+        {{ ((tier1_ccf * water_rate1) + (tier2_ccf * water_rate2) + (tier1_ccf * sewer_rate1) + (tier2_ccf * sewer_rate2) + water_fixed + sewer_fixed) | round(2) }}
+      attributes:
+        period_start: >
+          {% set today = now().date() %}
+          {% set year = today.year %}
+          {% set resets = [
+            today.replace(year=year-1, month=11, day=18),
+            today.replace(month=2, day=18),
+            today.replace(month=5, day=18),
+            today.replace(month=8, day=18),
+            today.replace(month=11, day=18),
+            today.replace(year=year+1, month=2, day=18)
+          ] %}
+          {% set ns = namespace(start=resets[0]) %}
+          {% for i in range(resets | length - 1) %}
+            {% if resets[i] <= today < resets[i+1] %}
+              {% set ns.start = resets[i] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.start | string }}
+        period_end: >
+          {% set today = now().date() %}
+          {% set year = today.year %}
+          {% set resets = [
+            today.replace(year=year-1, month=11, day=18),
+            today.replace(month=2, day=18),
+            today.replace(month=5, day=18),
+            today.replace(month=8, day=18),
+            today.replace(month=11, day=18),
+            today.replace(year=year+1, month=2, day=18)
+          ] %}
+          {% set ns = namespace(end=resets[1]) %}
+          {% for i in range(resets | length - 1) %}
+            {% if resets[i] <= today < resets[i+1] %}
+              {% set ns.end = resets[i+1] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.end | string }}
+        days_elapsed: >
+          {% set today = now().date() %}
+          {% set year = today.year %}
+          {% set resets = [
+            today.replace(year=year-1, month=11, day=18),
+            today.replace(month=2, day=18),
+            today.replace(month=5, day=18),
+            today.replace(month=8, day=18),
+            today.replace(month=11, day=18),
+            today.replace(year=year+1, month=2, day=18)
+          ] %}
+          {% set ns = namespace(start=resets[0]) %}
+          {% for i in range(resets | length - 1) %}
+            {% if resets[i] <= today < resets[i+1] %}
+              {% set ns.start = resets[i] %}
+            {% endif %}
+          {% endfor %}
+          {{ (today - ns.start).days + 1 }}
+        days_in_period: >
+          {% set today = now().date() %}
+          {% set year = today.year %}
+          {% set resets = [
+            today.replace(year=year-1, month=11, day=18),
+            today.replace(month=2, day=18),
+            today.replace(month=5, day=18),
+            today.replace(month=8, day=18),
+            today.replace(month=11, day=18),
+            today.replace(year=year+1, month=2, day=18)
+          ] %}
+          {% set ns = namespace(start=resets[0], end=resets[1]) %}
+          {% for i in range(resets | length - 1) %}
+            {% if resets[i] <= today < resets[i+1] %}
+              {% set ns.start = resets[i] %}
+              {% set ns.end = resets[i+1] %}
+            {% endif %}
+          {% endfor %}
+          {{ (ns.end - ns.start).days }}
+        projected_consumption_gal: >
+          {% set current_gal = states('sensor.water_utility') | float(0) %}
+          {% set today = now().date() %}
+          {% set year = today.year %}
+          {% set resets = [
+            today.replace(year=year-1, month=11, day=18),
+            today.replace(month=2, day=18),
+            today.replace(month=5, day=18),
+            today.replace(month=8, day=18),
+            today.replace(month=11, day=18),
+            today.replace(year=year+1, month=2, day=18)
+          ] %}
+          {% set ns = namespace(start=resets[0], end=resets[1]) %}
+          {% for i in range(resets | length - 1) %}
+            {% if resets[i] <= today < resets[i+1] %}
+              {% set ns.start = resets[i] %}
+              {% set ns.end = resets[i+1] %}
+            {% endif %}
+          {% endfor %}
+          {% set days_elapsed = (today - ns.start).days + 1 %}
+          {{ ((current_gal * (ns.end - ns.start).days / days_elapsed) if days_elapsed > 0 else 0) | round(0) }}
+        projected_consumption_ccf: >
+          {% set current_gal = states('sensor.water_utility') | float(0) %}
+          {% set today = now().date() %}
+          {% set year = today.year %}
+          {% set resets = [
+            today.replace(year=year-1, month=11, day=18),
+            today.replace(month=2, day=18),
+            today.replace(month=5, day=18),
+            today.replace(month=8, day=18),
+            today.replace(month=11, day=18),
+            today.replace(year=year+1, month=2, day=18)
+          ] %}
+          {% set ns = namespace(start=resets[0], end=resets[1]) %}
+          {% for i in range(resets | length - 1) %}
+            {% if resets[i] <= today < resets[i+1] %}
+              {% set ns.start = resets[i] %}
+              {% set ns.end = resets[i+1] %}
+            {% endif %}
+          {% endfor %}
+          {% set days_elapsed = (today - ns.start).days + 1 %}
+          {{ ((current_gal * (ns.end - ns.start).days / days_elapsed / 748.052) if days_elapsed > 0 else 0) | round(2) }}
+        will_hit_tier2: >
+          {% set current_gal = states('sensor.water_utility') | float(0) %}
+          {% set today = now().date() %}
+          {% set year = today.year %}
+          {% set resets = [
+            today.replace(year=year-1, month=11, day=18),
+            today.replace(month=2, day=18),
+            today.replace(month=5, day=18),
+            today.replace(month=8, day=18),
+            today.replace(month=11, day=18),
+            today.replace(year=year+1, month=2, day=18)
+          ] %}
+          {% set ns = namespace(start=resets[0], end=resets[1]) %}
+          {% for i in range(resets | length - 1) %}
+            {% if resets[i] <= today < resets[i+1] %}
+              {% set ns.start = resets[i] %}
+              {% set ns.end = resets[i+1] %}
+            {% endif %}
+          {% endfor %}
+          {% set days_elapsed = (today - ns.start).days + 1 %}
+          {% set projected_ccf = (current_gal * (ns.end - ns.start).days / days_elapsed / 748.052) if days_elapsed > 0 else 0 %}
+          {{ projected_ccf > 30 }}
+
+    # Current marginal water+sewer rate in $/gal — for Energy Dashboard "current price" field
+    # Returns tier 1 combined rate until quarter usage exceeds 30 CCF, then tier 2
+    - name: "Water Effective Rate"
+      unique_id: water_effective_rate
+      unit_of_measurement: "USD/gal"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set quarterly_ccf = states('sensor.water_utility') | float(0) / 748.052 %}
+        {% if quarterly_ccf <= 30 %}
+          {% set water_rate = states('input_number.water_tier1_rate') | float(7.53) %}
+          {% set sewer_rate = states('input_number.sewer_tier1_rate') | float(11.04) %}
+        {% else %}
+          {% set water_rate = states('input_number.water_tier2_rate') | float(9.41) %}
+          {% set sewer_rate = states('input_number.sewer_tier2_rate') | float(13.14) %}
+        {% endif %}
+        {{ ((water_rate + sewer_rate) / 748.052) | round(6) }}
