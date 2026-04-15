@@ -6,7 +6,7 @@ gas_utility:
   cycle: monthly
 
 water_utility:
-  source: sensor.water_meter_consumption
+  source: sensor.water_meter_main_total
   cycle: monthly
 
 electric_utility:
