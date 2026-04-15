@@ -4,6 +4,7 @@
 - id: 'gas_rate_change_notification'
   alias: "Gas Rate Change - Notification"
   description: "Notify when National Grid gas rates may have changed"
+  mode: single
   variables:
     notification_title: "National Grid Gas Rates"
   triggers:
@@ -38,6 +39,7 @@
   - action: notify.persistent_notification
     data:
       title: "{{ notification_title }} - Rate Update Detected"
+      notification_id: gas_rate_change
       message: >
         🏭 **Gas Rate Change Detected!**
         
@@ -73,7 +75,7 @@
   conditions:
   - condition: template
     value_template: >
-      {{ now().day == 1 or trigger.platform == 'state' }}
+      {{ now().day == 1 }}
   - condition: template
     value_template: >
       {{ states('sensor.estimated_monthly_gas_cost') not in ['unknown', 'unavailable'] }}
