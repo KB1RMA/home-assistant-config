@@ -15,7 +15,7 @@
         
         {# Get rates from multiscrape sensors with input_number fallbacks (all per therm) #}
         {% set delivery_rate = states('sensor.nationalgrid_gas_delivery_rate') | float(states('input_number.gas_delivery_rate') | float(1.5118)) %}
-        {% set supply_rate = states('input_number.gas_supply_rate') | float(1.2329) %}
+        {% set supply_rate = states('sensor.nationalgrid_gas_supply_rate') | float(states('input_number.gas_supply_rate') | float(1.2329)) %}
         {% set therm_factor = states('input_number.gas_therm_factor') | float(1.03378) %}
         
         {# Convert ft³ → CCF → therms, then apply per-therm rates #}
@@ -36,10 +36,10 @@
         delivery_rate_per_therm: >
           {{ states('sensor.nationalgrid_gas_delivery_rate') | float(states('input_number.gas_delivery_rate') | float(1.5118)) }}
         supply_rate_per_therm: >
-          {{ states('input_number.gas_supply_rate') | float(1.2329) }}
+          {{ states('sensor.nationalgrid_gas_supply_rate') | float(states('input_number.gas_supply_rate') | float(1.2329)) }}
         combined_rate_per_therm: >
           {% set delivery_rate = states('sensor.nationalgrid_gas_delivery_rate') | float(states('input_number.gas_delivery_rate') | float(1.5118)) %}
-          {% set supply_rate = states('input_number.gas_supply_rate') | float(1.2329) %}
+          {% set supply_rate = states('sensor.nationalgrid_gas_supply_rate') | float(states('input_number.gas_supply_rate') | float(1.2329)) %}
           {{ (delivery_rate + supply_rate) | round(4) }}
         note: >
           {{ "Tracks cumulative variable usage cost (excludes minimum charge, paperless credit, and MA Winter Bill Relief). See Estimated Monthly Gas Cost for full bill estimate." }}
@@ -57,7 +57,7 @@
         
         {# Get rates from multiscrape sensors with input_number fallbacks (all per therm) #}
         {% set delivery_rate = states('sensor.nationalgrid_gas_delivery_rate') | float(states('input_number.gas_delivery_rate') | float(1.5118)) %}
-        {% set supply_rate = states('input_number.gas_supply_rate') | float(1.2329) %}
+        {% set supply_rate = states('sensor.nationalgrid_gas_supply_rate') | float(states('input_number.gas_supply_rate') | float(1.2329)) %}
         {% set therm_factor = states('input_number.gas_therm_factor') | float(1.03378) %}
         {% set minimum_charge = states('input_number.gas_customer_charge') | float(11.60) %}
         {% set paperless_credit = states('input_number.gas_paperless_credit') | float(0.38) %}
@@ -102,7 +102,7 @@
           {% set therm_factor = states('input_number.gas_therm_factor') | float(1.03378) %}
           {% set monthly_therms = (last_month / 100) * therm_factor %}
           {% set delivery_rate = states('sensor.nationalgrid_gas_delivery_rate') | float(states('input_number.gas_delivery_rate') | float(1.5118)) %}
-          {% set supply_rate = states('input_number.gas_supply_rate') | float(1.2329) %}
+          {% set supply_rate = states('sensor.nationalgrid_gas_supply_rate') | float(states('input_number.gas_supply_rate') | float(1.2329)) %}
           {{ (monthly_therms * (delivery_rate + supply_rate)) | round(2) }}
         estimated_delivery_cost: >
           {% set last_period = state_attr('sensor.gas_utility', 'last_period') | float(0) %}
@@ -118,7 +118,7 @@
           {% set last_month = last_period if last_period > 0 else [apr1_read - states('input_number.gas_meter_start_reading') | float(0), 0] | max %}
           {% set therm_factor = states('input_number.gas_therm_factor') | float(1.03378) %}
           {% set monthly_therms = (last_month / 100) * therm_factor %}
-          {% set supply_rate = states('input_number.gas_supply_rate') | float(1.2329) %}
+          {% set supply_rate = states('sensor.nationalgrid_gas_supply_rate') | float(states('input_number.gas_supply_rate') | float(1.2329)) %}
           {{ (monthly_therms * supply_rate) | round(2) }}
         minimum_charge: >
           {{ states('input_number.gas_customer_charge') | float(11.60) }}
@@ -130,7 +130,7 @@
         delivery_rate_per_therm: >
           {{ states('sensor.nationalgrid_gas_delivery_rate') | float(states('input_number.gas_delivery_rate') | float(1.5118)) }}
         supply_rate_per_therm: >
-          {{ states('input_number.gas_supply_rate') | float(1.2329) }}
+          {{ states('sensor.nationalgrid_gas_supply_rate') | float(states('input_number.gas_supply_rate') | float(1.2329)) }}
         rate_source: >
           {% if states('sensor.nationalgrid_gas_delivery_rate') != 'unknown' and states('sensor.nationalgrid_gas_delivery_rate') != 'unavailable' %}
             {{ "Automated extraction from National Grid website (every 2 weeks)" }}
