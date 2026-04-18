@@ -83,6 +83,16 @@ water_overnight_baseline:
   icon: mdi:water-pump
   mode: box
 
+# Meter snapshot stored at 06:00 to freeze the overnight window before morning usage
+water_overnight_end:
+  name: "Water Overnight End"
+  min: 0
+  max: 9999999
+  step: 0.1
+  unit_of_measurement: "gal"
+  icon: mdi:water-check
+  mode: box
+
 # Meter snapshot stored at 00:05 for daily spike detection (compared at 23:00)
 water_daily_baseline:
   name: "Water Daily Baseline"
