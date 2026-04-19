@@ -261,3 +261,18 @@
           {% set sewer_rate = states('input_number.sewer_tier2_rate') | float(13.14) %}
         {% endif %}
         {{ ((water_rate + sewer_rate) / 748.052) | round(6) }}
+
+    # Gallons used since the 1am overnight baseline — frozen at 6am to exclude morning usage
+    - name: "Water Overnight Usage"
+      unique_id: water_overnight_usage
+      unit_of_measurement: "gal"
+      device_class: water
+      state_class: measurement
+      state: >
+        {% set start = states('input_number.water_overnight_baseline') | float(0) %}
+        {% set end_snap = states('input_number.water_overnight_end') | float(0) %}
+        {% if now().hour >= 6 and end_snap > start %}
+          {{ (end_snap - start) | round(1) }}
+        {% else %}
+          {{ [((states('sensor.water_meter_main_total') | float(0)) - start), 0] | max | round(1) }}
+        {% endif %}
