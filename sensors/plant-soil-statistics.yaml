@@ -1,0 +1,23 @@
+# Soil temperature statistics sensors
+# 7-day rolling mean for outdoor soil temperature sensors.
+# Used for planting readiness decisions per UMass Extension guidance —
+# a sustained average is more reliable than an instantaneous reading.
+
+- platform: statistics
+  name: "Backyard Flowers Soil Temp 7 Day Mean"
+  unique_id: backyard_flowers_soil_temp_7_day_mean
+  entity_id: sensor.backyard_flowers_soil_temperature
+  state_characteristic: mean
+  # Max reporting interval is 1 hour → 168 samples to cover a full 7-day window
+  sampling_size: 168
+  max_age:
+    days: 7
+
+- platform: statistics
+  name: "Vegetable Garden Soil Temp 7 Day Mean"
+  unique_id: vegetable_garden_soil_temp_7_day_mean
+  entity_id: sensor.vegetable_garden_soil_temperature
+  state_characteristic: mean
+  sampling_size: 168
+  max_age:
+    days: 7

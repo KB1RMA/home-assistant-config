@@ -1,0 +1,118 @@
+# Plant Watering Tracker Automations
+# Detects watering events by watching for soil moisture crossing 50% upward.
+# A 2-minute confirmation window guards against sensor glitches — the action
+# fires (and the helper is stamped) after moisture has held above 50% for 2
+# full minutes, so the recorded time is ~2 minutes after the actual crossing.
+# This is accurate enough for day/hour-level "last watered" tracking.
+# Use the tap action on the dashboard card to stamp immediately when you water.
+#
+# NOTE: For outdoor plants, heavy rain can also trigger these. Cross-reference
+# the daily rainfall sensor (sensor.olive_st_wx_dailyrain) if unsure.
+
+- id: plant_watering_tracker_money_tree
+  alias: "Plant Watering Tracker — Money Tree"
+  description: >
+    Stamps input_datetime.money_tree_last_watered when Money Tree soil
+    moisture rises above 50% and stays there for 2 minutes.
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.money_tree_soil_soil_moisture
+      above: 50
+      for: "00:02:00"
+  conditions:
+    # Require the previous state to be a real number at or below 50 so that
+    # transitions from unavailable/unknown after a restart don't create a
+    # false watering record.
+    - condition: template
+      value_template: >
+        {{ trigger.from_state.state | is_number
+           and trigger.from_state.state | float <= 50 }}
+  actions:
+    - action: script.stamp_plant_watered
+      data:
+        datetime_entity: input_datetime.money_tree_last_watered
+  mode: single
+
+- id: plant_watering_tracker_office_plant
+  alias: "Plant Watering Tracker — Office Plant"
+  description: >
+    Stamps input_datetime.office_plant_last_watered when Office Plant soil
+    moisture rises above 50% and stays there for 2 minutes.
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.office_plant_soil_soil_moisture
+      above: 50
+      for: "00:02:00"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state.state | is_number
+           and trigger.from_state.state | float <= 50 }}
+  actions:
+    - action: script.stamp_plant_watered
+      data:
+        datetime_entity: input_datetime.office_plant_last_watered
+  mode: single
+
+- id: plant_watering_tracker_top_of_fridge
+  alias: "Plant Watering Tracker — Top of Fridge Plant"
+  description: >
+    Stamps input_datetime.top_of_fridge_plant_last_watered when Top of Fridge
+    Plant soil moisture rises above 50% and stays there for 2 minutes.
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.top_of_fridge_plant_soil_soil_moisture
+      above: 50
+      for: "00:02:00"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state.state | is_number
+           and trigger.from_state.state | float <= 50 }}
+  actions:
+    - action: script.stamp_plant_watered
+      data:
+        datetime_entity: input_datetime.top_of_fridge_plant_last_watered
+  mode: single
+
+- id: plant_watering_tracker_backyard_flowers
+  alias: "Plant Watering Tracker — Backyard Flowers"
+  description: >
+    Stamps input_datetime.backyard_flowers_last_watered when Backyard Flowers
+    soil moisture rises above 50% and stays there for 2 minutes.
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.backyard_flowers_soil_soil_moisture
+      above: 50
+      for: "00:02:00"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state.state | is_number
+           and trigger.from_state.state | float <= 50 }}
+  actions:
+    - action: script.stamp_plant_watered
+      data:
+        datetime_entity: input_datetime.backyard_flowers_last_watered
+  mode: single
+
+- id: plant_watering_tracker_vegetable_garden
+  alias: "Plant Watering Tracker — Vegetable Garden"
+  description: >
+    Stamps input_datetime.vegetable_garden_last_watered when Vegetable Garden
+    soil moisture rises above 50% and stays there for 2 minutes.
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.vegetable_garden_soil_soil_moisture
+      above: 50
+      for: "00:02:00"
+  conditions:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state.state | is_number
+           and trigger.from_state.state | float <= 50 }}
+  actions:
+    - action: script.stamp_plant_watered
+      data:
+        datetime_entity: input_datetime.vegetable_garden_last_watered
+  mode: single

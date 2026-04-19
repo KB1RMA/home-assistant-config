@@ -1,0 +1,20 @@
+stamp_plant_watered:
+  alias: "Stamp Plant Last Watered"
+  description: >
+    Sets an input_datetime helper to the current time.
+    Called from plant dashboard cards via tap_action.
+  fields:
+    datetime_entity:
+      description: "The input_datetime entity to stamp (e.g. input_datetime.money_tree_last_watered)"
+      required: true
+      selector:
+        entity:
+          domain: input_datetime
+  sequence:
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: "{{ datetime_entity }}"
+      data:
+        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+  mode: parallel
+  max: 5
