@@ -1,0 +1,34 @@
+# Plant last-watered timestamps
+# Updated automatically by the plant-watering-tracker automation when soil
+# moisture rises above 50% (upward crossing only), indicating a watering event.
+# Set manually via the Helpers UI if you need to backfill a missed event.
+
+money_tree_last_watered:
+  name: "Money Tree Last Watered"
+  has_date: true
+  has_time: true
+  icon: mdi:tree
+
+office_plant_last_watered:
+  name: "Office Plant Last Watered"
+  has_date: true
+  has_time: true
+  icon: mdi:flower-tulip
+
+top_of_fridge_plant_last_watered:
+  name: "Top of Fridge Plant Last Watered"
+  has_date: true
+  has_time: true
+  icon: mdi:leaf
+
+backyard_flowers_last_watered:
+  name: "Backyard Flowers Last Watered"
+  has_date: true
+  has_time: true
+  icon: mdi:flower
+
+vegetable_garden_last_watered:
+  name: "Vegetable Garden Last Watered"
+  has_date: true
+  has_time: true
+  icon: mdi:sprout

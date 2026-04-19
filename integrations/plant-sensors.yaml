@@ -1,0 +1,70 @@
+# Plant Soil Sensor Binary Sensors
+# Single source of truth for all plant watering alerts.
+# Threshold: soil moisture < 20% triggers a needs-watering alert.
+# Outdoor plants also require < 0.25 in of today's rainfall to alert —
+#   significant rain suppresses the alert even if soil reads dry.
+
+- binary_sensor:
+
+    # ── Rainfall context ──────────────────────────────────────────────────────
+
+    # True (Wet) when today's rain is enough to skip outdoor watering
+    - name: "Rain Skipping Outdoor Watering"
+      unique_id: rain_skipping_outdoor_watering
+      device_class: moisture
+      state: >
+        {{ states('sensor.olive_st_wx_dailyrain') | float(0) >= 0.25 }}
+
+    # ── Outdoor plants ────────────────────────────────────────────────────────
+
+    - name: "Backyard Flowers Needs Watering"
+      unique_id: backyard_flowers_needs_watering
+      device_class: problem
+      state: >
+        {{ states('sensor.backyard_flowers_soil_soil_moisture') | float(100) < 20
+           and not is_state('binary_sensor.rain_skipping_outdoor_watering', 'on') }}
+
+    - name: "Vegetable Garden Needs Watering"
+      unique_id: vegetable_garden_needs_watering
+      device_class: problem
+      state: >
+        {{ states('sensor.vegetable_garden_soil_soil_moisture') | float(100) < 20
+           and not is_state('binary_sensor.rain_skipping_outdoor_watering', 'on') }}
+
+    # ── Soil temperature / planting readiness (Massachusetts zone 6a/6b) ─────
+    # Cool-season flowers (pansies, snapdragons, sweet peas): soil ≥ 45°F
+    # Warm-season annuals (marigolds, zinnias, impatiens, petunias): soil ≥ 60°F
+    # Thresholds are applied against the 7-day rolling mean (see sensors/)
+    # rather than instantaneous readings, per UMass Extension guidance.
+
+    - name: "Soil Ready Cool Season"
+      unique_id: soil_ready_cool_season
+      state: >
+        {{ [states('sensor.backyard_flowers_soil_temp_7_day_mean') | float(0),
+            states('sensor.vegetable_garden_soil_temp_7_day_mean') | float(0)] | max >= 45 }}
+
+    - name: "Soil Ready Warm Season"
+      unique_id: soil_ready_warm_season
+      state: >
+        {{ [states('sensor.backyard_flowers_soil_temp_7_day_mean') | float(0),
+            states('sensor.vegetable_garden_soil_temp_7_day_mean') | float(0)] | max >= 60 }}
+
+    # ── Indoor plants ─────────────────────────────────────────────────────────
+
+    - name: "Money Tree Needs Watering"
+      unique_id: money_tree_needs_watering
+      device_class: problem
+      state: >
+        {{ states('sensor.money_tree_soil_soil_moisture') | float(100) < 20 }}
+
+    - name: "Office Plant Needs Watering"
+      unique_id: office_plant_needs_watering
+      device_class: problem
+      state: >
+        {{ states('sensor.office_plant_soil_soil_moisture') | float(100) < 20 }}
+
+    - name: "Top of Fridge Plant Needs Watering"
+      unique_id: top_of_fridge_plant_needs_watering
+      device_class: problem
+      state: >
+        {{ states('sensor.top_of_fridge_plant_soil_soil_moisture') | float(100) < 20 }}
