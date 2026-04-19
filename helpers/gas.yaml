@@ -6,7 +6,7 @@
 gas_usage_alert_threshold:
   name: "Gas Usage Alert Threshold"
   min: 0
-  max: 10000
+  max: 20000
   step: 50
   unit_of_measurement: "ft³/month"
   icon: mdi:gas-cylinder

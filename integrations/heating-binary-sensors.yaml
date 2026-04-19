@@ -10,3 +10,15 @@
       # Debounce the signal to handle erratic behavior
       delay_on: "00:00:30"
       delay_off: "00:00:30"
+
+    # Boiler firing detection based on outlet water temperature.
+    # Threshold 120°F: most residential boilers read below this when fully
+    # idle; outlet climbs past it within ~60 s of burner ignition.
+    # Adjust threshold if your boiler maintains a high standby setpoint.
+    - name: "Boiler Firing"
+      unique_id: boiler_firing
+      device_class: running
+      state: >
+        {{ states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) > 120 }}
+      delay_on: "00:01:00"
+      delay_off: "00:03:00"

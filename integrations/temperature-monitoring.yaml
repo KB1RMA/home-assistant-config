@@ -1,6 +1,13 @@
 # Temperature Monitoring Sensors
 # Template sensors for monitoring and comparing temperature readings
 
+# NOTE: Physical sensor labeling appears reversed on the boiler.
+# sensor.shelly_furnace_monitor_boiler_return consistently reads HIGHER than
+# sensor.shelly_furnace_monitor_boiler_outlet during firing cycles, which means
+# the "return" probe is physically mounted on the hot supply pipe and vice versa.
+# Delta T is therefore computed as (return - outlet) to yield a positive value
+# during normal operation. Verify probe placement when next servicing the boiler.
+
 - sensor:
   # Boiler Temperature Difference Sensor
   - name: "Boiler Delta T"
@@ -12,7 +19,7 @@
       {% set outlet_temp = states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) %}
       {% set return_temp = states('sensor.shelly_furnace_monitor_boiler_return') | float(0) %}
       {% if outlet_temp > 0 and return_temp > 0 %}
-        {{ (outlet_temp - return_temp) | round(1) }}
+        {{ (return_temp - outlet_temp) | round(1) }}
       {% else %}
         {{ states('sensor.boiler_temperature_difference') | float(0) }}
       {% endif %}
@@ -25,10 +32,11 @@
         {% set outlet_temp = states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) %}
         {% set return_temp = states('sensor.shelly_furnace_monitor_boiler_return') | float(0) %}
         {% if outlet_temp > 0 and return_temp > 0 %}
-          {% if outlet_temp > return_temp %}
-            {{ "Outlet is " + (outlet_temp - return_temp) | round(1) | string + "°F warmer than return" }}
-          {% elif return_temp > outlet_temp %}
-            {{ "Return is " + (return_temp - outlet_temp) | round(1) | string + "°F warmer than outlet" }}
+          {% set diff = (return_temp - outlet_temp) | round(1) %}
+          {% if diff > 0 %}
+            {{ "Supply is " + diff | string + "°F warmer than loop return" }}
+          {% elif diff < 0 %}
+            {{ "Loop return is " + (diff | abs) | string + "°F warmer — possible sensor issue" }}
           {% else %}
             {{ "Temperatures are equal" }}
           {% endif %}
@@ -38,7 +46,7 @@
       status: >
         {% set outlet_temp = states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) %}
         {% set return_temp = states('sensor.shelly_furnace_monitor_boiler_return') | float(0) %}
-        {% set diff = (outlet_temp - return_temp) | abs %}
+        {% set diff = (return_temp - outlet_temp) | abs %}
         {% if outlet_temp == 0 or return_temp == 0 %}
           {{ "No Data" }}
         {% elif diff < 5 %}
@@ -51,7 +59,7 @@
       efficiency_indicator: >
         {% set outlet_temp = states('sensor.shelly_furnace_monitor_boiler_outlet') | float(0) %}
         {% set return_temp = states('sensor.shelly_furnace_monitor_boiler_return') | float(0) %}
-        {% set diff = outlet_temp - return_temp %}
+        {% set diff = return_temp - outlet_temp %}
         {% if outlet_temp == 0 or return_temp == 0 %}
           {{ "Unknown" }}
         {% elif diff > 20 %}
