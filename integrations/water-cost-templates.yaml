@@ -276,3 +276,13 @@
         {% else %}
           {{ [((states('sensor.water_meter_main_total') | float(0)) - start), 0] | max | round(1) }}
         {% endif %}
+
+    # Gallons used since the 00:05 daily baseline
+    - name: "Water Daily Usage"
+      unique_id: water_daily_usage
+      unit_of_measurement: "gal"
+      device_class: water
+      state_class: measurement
+      state: >
+        {{ [(states('sensor.water_meter_main_total') | float(0)) -
+            (states('input_number.water_daily_baseline') | float(0)), 0] | max | round(1) }}

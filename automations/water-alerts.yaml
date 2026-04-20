@@ -42,15 +42,13 @@
   conditions:
     - condition: time
       after: "01:00:00"
-      before: "06:00:00"
+      before: "06:05:00"  # 5-min buffer so the 06:00 snapshot re-render can still trigger
   actions:
     - action: notify.mobile_app_christophers_ipad
       data:
         title: "Possible Water Leak Detected"
         message: >
-          {{ ((states('sensor.water_meter_main_total') | float(0)) -
-              (states('input_number.water_overnight_baseline') | float(0))) | round(1) }} gallons
-          used since 1am.
+          {{ states('sensor.water_overnight_usage') | float(0) | round(1) }} gallons used since 1am.
           {%- set flow = states('sensor.water_meter_main_flow') | float(-1) %}
           {%- if flow > 0 %} Water is actively flowing at {{ flow | round(2) }} gal/min.
           {%- elif flow == 0 %} No active flow right now.
@@ -66,9 +64,7 @@
       data:
         title: "Possible Water Leak Detected"
         message: >
-          {{ ((states('sensor.water_meter_main_total') | float(0)) -
-              (states('input_number.water_overnight_baseline') | float(0))) | round(1) }} gallons
-          used since 1am.
+          {{ states('sensor.water_overnight_usage') | float(0) | round(1) }} gallons used since 1am.
           {%- set flow = states('sensor.water_meter_main_flow') | float(-1) %}
           {%- if flow > 0 %} Water is actively flowing at {{ flow | round(2) }} gal/min.
           {%- elif flow == 0 %} No active flow right now.
@@ -94,14 +90,14 @@
       data:
         title: "Approaching Water Tier 2"
         message: >
-          Quarterly usage is now {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF —
+          Quarterly usage is now {{ state_attr('sensor.water_quarter_cost', 'quarterly_consumption_ccf') | round(1) }} CCF —
           approaching the 30 CCF tier 2 threshold. Conserve to avoid the higher
           ${{ states('input_number.water_tier2_rate') }}/${{ states('input_number.sewer_tier2_rate') }}/CCF combined rate.
     - action: notify.mobile_app_tophers_iphone
       data:
         title: "Approaching Water Tier 2"
         message: >
-          Quarterly usage is now {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF —
+          Quarterly usage is now {{ state_attr('sensor.water_quarter_cost', 'quarterly_consumption_ccf') | round(1) }} CCF —
           approaching the 30 CCF tier 2 threshold. Conserve to avoid the higher
           ${{ states('input_number.water_tier2_rate') }}/${{ states('input_number.sewer_tier2_rate') }}/CCF combined rate.
 
@@ -119,18 +115,18 @@
         title: "Water Now in Tier 2"
         message: >
           Quarterly usage has exceeded 30 CCF
-          ({{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF).
+          ({{ state_attr('sensor.water_quarter_cost', 'quarterly_consumption_ccf') | round(1) }} CCF).
           Additional usage now costs
-          ${{ (states('input_number.water_tier2_rate') | float(9.41) + states('input_number.sewer_tier2_rate') | float(13.14)) | round(2) }}/CCF.
+          ${{ state_attr('sensor.water_quarter_cost', 'water_tier2_rate') | float(9.41) + state_attr('sensor.water_quarter_cost', 'sewer_tier2_rate') | float(13.14) | round(2) }}/CCF.
           Projected bill: ${{ states('sensor.projected_quarterly_water_cost') }}.
     - action: notify.mobile_app_tophers_iphone
       data:
         title: "Water Now in Tier 2"
         message: >
           Quarterly usage has exceeded 30 CCF
-          ({{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF).
+          ({{ state_attr('sensor.water_quarter_cost', 'quarterly_consumption_ccf') | round(1) }} CCF).
           Additional usage now costs
-          ${{ (states('input_number.water_tier2_rate') | float(9.41) + states('input_number.sewer_tier2_rate') | float(13.14)) | round(2) }}/CCF.
+          ${{ state_attr('sensor.water_quarter_cost', 'water_tier2_rate') | float(9.41) + state_attr('sensor.water_quarter_cost', 'sewer_tier2_rate') | float(13.14) | round(2) }}/CCF.
           Projected bill: ${{ states('sensor.projected_quarterly_water_cost') }}.
 
 # ── 5. Projected bill exceeds $250 ───────────────────────────────────────────
@@ -147,13 +143,13 @@
         title: "Water Bill Tracking High"
         message: >
           Projected quarterly water + sewer bill is ${{ states('sensor.projected_quarterly_water_cost') }},
-          based on {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF used so far this period.
+          based on {{ state_attr('sensor.water_quarter_cost', 'quarterly_consumption_ccf') | round(1) }} CCF used so far this period.
     - action: notify.mobile_app_tophers_iphone
       data:
         title: "Water Bill Tracking High"
         message: >
           Projected quarterly water + sewer bill is ${{ states('sensor.projected_quarterly_water_cost') }},
-          based on {{ (states('sensor.water_utility') | float(0) / 748.052) | round(1) }} CCF used so far this period.
+          based on {{ state_attr('sensor.water_quarter_cost', 'quarterly_consumption_ccf') | round(1) }} CCF used so far this period.
 
 # ── 6a. Meter unavailable (HA entity lost) ────────────────────────────────────
 - id: 'water_meter_offline'
@@ -237,16 +233,14 @@
       data:
         title: "High Water Usage Today"
         message: >
-          {{ ((states('sensor.water_meter_main_total') | float(0)) -
-              (states('input_number.water_daily_baseline') | float(0))) | round(1) }} gallons
+          {{ states('sensor.water_daily_usage') | float(0) | round(1) }} gallons
           used today — above the 150 gal daily threshold. Check for a hose left running
           or an irrigation issue.
     - action: notify.mobile_app_tophers_iphone
       data:
         title: "High Water Usage Today"
         message: >
-          {{ ((states('sensor.water_meter_main_total') | float(0)) -
-              (states('input_number.water_daily_baseline') | float(0))) | round(1) }} gallons
+          {{ states('sensor.water_daily_usage') | float(0) | round(1) }} gallons
           used today — above the 150 gal daily threshold. Check for a hose left running
           or an irrigation issue.
 
