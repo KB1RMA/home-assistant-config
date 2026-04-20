@@ -53,7 +53,7 @@
       state: >
         {{ states('sensor.projected_quarterly_water_cost') | float(0) > 250 }}
 
-    # Daily usage (since midnight) exceeds 150 gallons — delegates to sensor.water_daily_usage
+    # Daily usage (since 00:05) exceeds 150 gallons — delegates to sensor.water_daily_usage
     - name: "Water Daily Spike"
       unique_id: water_daily_spike
       device_class: problem
