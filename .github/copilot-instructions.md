@@ -19,8 +19,8 @@ Home Assistant's Jinja2 template engine.
 ### Key conventions
 
 - **Binary sensors are the source of truth for alert conditions.** Automations trigger on `binary_sensor.*` state changes; the condition logic lives in `integrations/`, not in the automation.
-- **Configurable values live in `helpers/`.** Rates (e.g., `input_number.water_tier1_rate`) and thresholds are set there and read via `states('input_number.*')` in templates. Do not hardcode them.
-- **Scripts are parameterized with `fields:`.** When the same action sequence is needed in multiple automations, extract it to `scripts/` and call it with `script.turn_on` + `variables`.
+- **User-configurable values live in `helpers/`.** Rates (e.g., `input_number.water_tier1_rate`) and adjustable thresholds are defined there and read via `states('input_number.*')` in templates. Fixed constants (e.g., hard physical limits) may be inlined in templates, but anything a user might want to tune should be a helper.
+- **Scripts are parameterized with `fields:`.** When the same action sequence is needed in multiple automations, extract it to `scripts/` and call it using a direct script action (e.g., `action: script.some_script`) with inputs passed in `data:`.
 - **One `unique_id` per entity.** Every template sensor and binary sensor must have a `unique_id` so it can be managed via the UI.
 
 ## Jinja2 Template Safety Rules
@@ -67,10 +67,14 @@ ${{ (water_rate | float(0) + sewer_rate | float(0)) | round(2) }}
 
 ### State string guards
 
-When a template branches on a sensor's value, guard against non-numeric states:
+When a template branches on a sensor's value, guard against non-numeric states
+using the `| is_number` test:
 
 ```yaml
-{% if states('sensor.foo') not in ['unavailable', 'unknown', 'none'] %}
+{% if states('sensor.foo') | is_number %}
   {{ states('sensor.foo') | float(0) }}
 {% endif %}
 ```
+
+For simple output where a fallback of `0` is acceptable, `| float(0)` coercion
+alone is sufficient without an explicit guard.
