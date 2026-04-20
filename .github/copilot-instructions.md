@@ -59,10 +59,10 @@ two filtered values with `+`, the final filter applies only to the last term,
 
 ```yaml
 # Bad — | round(2) applies only to sewer_rate, not the sum
-${{ water_rate | float(0) + sewer_rate | float(0) | round(2) }}
+{{ water_rate | float(0) + sewer_rate | float(0) | round(2) }}
 
 # Good
-${{ (water_rate | float(0) + sewer_rate | float(0)) | round(2) }}
+{{ (water_rate | float(0) + sewer_rate | float(0)) | round(2) }}
 ```
 
 ### State string guards
