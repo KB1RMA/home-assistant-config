@@ -23,13 +23,13 @@
           false
         {% endif %}
 
-    # >10 gallons used since 1am baseline (possible overnight leak)
+    # >10 gallons in the overnight window — delegates to sensor.water_overnight_usage
+    # which handles the 06:00 freeze and missing-snapshot fallback.
     - name: "Water Overnight Leak"
       unique_id: water_overnight_leak
       device_class: problem
       state: >
-        {{ (states('sensor.water_meter_main_total') | float(0)) -
-           (states('input_number.water_overnight_baseline') | float(0)) > 10 }}
+        {{ states('sensor.water_overnight_usage') | float(0) > 10 }}
 
     # Quarterly usage above 25 CCF (18,701 gal) but not yet in tier 2 — warning zone
     - name: "Water Approaching Tier 2"
@@ -53,10 +53,9 @@
       state: >
         {{ states('sensor.projected_quarterly_water_cost') | float(0) > 250 }}
 
-    # Daily usage (since midnight) exceeds 150 gallons
+    # Daily usage (since 00:05) exceeds 150 gallons — delegates to sensor.water_daily_usage
     - name: "Water Daily Spike"
       unique_id: water_daily_spike
       device_class: problem
       state: >
-        {{ (states('sensor.water_meter_main_total') | float(0)) -
-           (states('input_number.water_daily_baseline') | float(0)) > 150 }}
+        {{ states('sensor.water_daily_usage') | float(0) > 150 }}
