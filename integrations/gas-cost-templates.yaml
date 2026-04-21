@@ -9,7 +9,7 @@
       unique_id: gas_total_cost
       unit_of_measurement: "USD"
       device_class: monetary
-      state_class: total
+      state_class: total_increasing
       state: >
         {% set current_total = states('sensor.gas_meter_consumption_15694770') | float(0) %}
         
@@ -235,6 +235,49 @@
           {% endif %}
           {% set days_in_month = (next_month - now().replace(day=1)).days %}
           {{ ((current_consumption * days_in_month / days_elapsed) | round(0)) if days_elapsed > 0 else 0 }}
+        projected_monthly_consumption_weather_adjusted: >
+          {% set current_consumption = states('sensor.gas_utility') | float(0) %}
+          {% set days_elapsed = now().day %}
+          {% set month = now().month %}
+          {% set year = now().year %}
+          {% if month == 12 %}
+            {% set next_month = now().replace(year=year+1, month=1, day=1) %}
+          {% else %}
+            {% set next_month = now().replace(month=month+1, day=1) %}
+          {% endif %}
+          {% set days_in_month = (next_month - now().replace(day=1)).days %}
+          {% set days_remaining = days_in_month - days_elapsed %}
+          {% if days_elapsed == 0 or current_consumption == 0 %}
+            {{ 0 }}
+          {% else %}
+            {% set outdoor_temp = states('sensor.olive_st_wx_temp') | float(55) %}
+            {% set heating_base_temp = 65 %}
+            {# Non-heating base load per day: domestic hot water + cooking ~50 ft³ #}
+            {% set base_daily = 50 %}
+            {% set avg_daily = current_consumption / days_elapsed %}
+            {% set heating_daily_avg = [avg_daily - base_daily, 0] | max %}
+            {# Climatological average daily HDD (base 65°F) for Newburyport MA by month #}
+            {# Index 0 = unused, 1=Jan ... 12=Dec #}
+            {% set monthly_hdd = [0, 35, 30, 22, 12, 4, 0, 0, 0, 1, 10, 22, 32] %}
+            {% set avg_month_hdd = monthly_hdd[month] | float(15) %}
+            {% set current_hdd = [heating_base_temp - outdoor_temp, 0] | max %}
+            {# Scale remaining heating load: how cold is it NOW vs the monthly average #}
+            {% set hdd_factor = (current_hdd / avg_month_hdd) if avg_month_hdd > 0 else 0 %}
+            {% set remaining_daily = base_daily + heating_daily_avg * hdd_factor %}
+            {{ (current_consumption + remaining_daily * days_remaining) | round(0) | int }}
+          {% endif %}
+        outdoor_temp_f: >
+          {{ states('sensor.olive_st_wx_temp') | float('unknown') }}
+        days_remaining: >
+          {% set month = now().month %}
+          {% set year = now().year %}
+          {% if month == 12 %}
+            {% set next_month = now().replace(year=year+1, month=1, day=1) %}
+          {% else %}
+            {% set next_month = now().replace(month=month+1, day=1) %}
+          {% endif %}
+          {% set days_in_month = (next_month - now().replace(day=1)).days %}
+          {{ days_in_month - now().day }}
 
     # Combined delivery + supply rate for history tracking
     - name: "Gas Combined Rate"
@@ -246,6 +289,20 @@
         {% set delivery = states('sensor.nationalgrid_gas_delivery_rate') | float(0) %}
         {% set supply = states('input_number.gas_supply_rate') | float(0) %}
         {{ (delivery + supply) | round(4) if delivery > 0 and supply > 0 else none }}
+
+    # Gas cost rate per ft³ — use this as the "entity tracking the price" in the Energy
+    # dashboard gas source configuration to get accurate per-period cost calculations.
+    # Formula: (delivery + supply) $/therm × therm_factor therms/CCF ÷ 100 ft³/CCF
+    - name: "Gas Rate Per ft³"
+      unique_id: gas_rate_per_ft3
+      unit_of_measurement: "USD/ft³"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set delivery_rate = states('sensor.nationalgrid_gas_delivery_rate') | float(states('input_number.gas_delivery_rate') | float(1.5118)) %}
+        {% set supply_rate = states('input_number.gas_supply_rate') | float(1.2329) %}
+        {% set therm_factor = states('input_number.gas_therm_factor') | float(1.03378) %}
+        {{ ((delivery_rate + supply_rate) * therm_factor / 100) | round(6) }}
 
     # Monitor for rate changes from multiscrape sensors
     - name: "Gas Rate Change Monitor"

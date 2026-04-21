@@ -153,3 +153,123 @@ views:
               - entity: input_number.gas_supply_rate
                 name: Supply $/therm
             hours_to_show: 8760
+
+  # ── Boiler Performance view ──────────────────────────────────────────────────
+  - type: sections
+    title: Boiler
+    path: boiler
+    icon: mdi:heat-wave
+    max_columns: 3
+    sections:
+
+      # ── Current status KPIs ───────────────────────────────────────────────────
+      - type: grid
+        column_span: 3
+        columns: 5
+        cards:
+          - type: tile
+            entity: binary_sensor.boiler_firing
+            name: Boiler Firing
+            icon: mdi:fire
+          - type: tile
+            entity: sensor.shelly_furnace_monitor_boiler_outlet
+            name: Outlet
+            icon: mdi:thermometer-chevron-up
+          - type: tile
+            entity: sensor.shelly_furnace_monitor_boiler_return
+            name: Return
+            icon: mdi:thermometer-chevron-down
+          - type: tile
+            entity: sensor.boiler_temperature_difference
+            name: Delta T
+            icon: mdi:thermometer-lines
+          - type: tile
+            entity: sensor.olive_st_wx_temp
+            name: Outdoor Temp
+            icon: mdi:home-thermometer-outline
+
+      # ── Live temperature history (last 24 h) ──────────────────────────────────
+      - type: grid
+        column_span: 2
+        cards:
+          - type: history-graph
+            title: Boiler Temperatures — Last 24 h
+            entities:
+              - entity: sensor.shelly_furnace_monitor_boiler_outlet
+                name: Outlet
+              - entity: sensor.shelly_furnace_monitor_boiler_return
+                name: Return
+              - entity: sensor.olive_st_wx_temp
+                name: Outdoor
+            hours_to_show: 24
+
+      # ── Today's run stats ─────────────────────────────────────────────────────
+      - type: grid
+        column_span: 1
+        cards:
+          - type: gauge
+            entity: sensor.boiler_duty_cycle_today
+            name: Duty Cycle Today
+            min: 0
+            max: 100
+            needle: true
+            severity:
+              green: 0
+              yellow: 40
+              red: 65
+          - type: tile
+            entity: sensor.boiler_run_time_today
+            name: Run Time Today
+            icon: mdi:clock-outline
+          - type: tile
+            entity: sensor.boiler_cycles_today
+            name: Firing Cycles Today
+            icon: mdi:counter
+          - type: tile
+            entity: sensor.boiler_run_time_this_month
+            name: Run Time This Month
+            icon: mdi:calendar-clock
+
+      # ── Delta T history (7 days) ──────────────────────────────────────────────
+      - type: grid
+        column_span: 2
+        cards:
+          - type: history-graph
+            title: Delta T — Last 7 Days
+            entities:
+              - entity: sensor.boiler_temperature_difference
+                name: Outlet − Return (°F)
+            hours_to_show: 168
+
+      # ── Efficiency note ───────────────────────────────────────────────────────
+      - type: grid
+        column_span: 1
+        cards:
+          - type: markdown
+            title: Reading the Delta T
+            content: |-
+              | Delta T | What it means |
+              |:--|:--|
+              | **< 5 °F** | Boiler idle / just started |
+              | **5–15 °F** | Warming up or light load |
+              | **15–30 °F** | Normal heating operation |
+              | **> 30 °F** | Heavy load or flow restriction |
+
+              **Short cycling** (many cycles, low run time) wastes fuel and stresses the heat exchanger. Typical healthy duty cycle in a cold month is 30–55 %.
+
+              If return temp stays **below 130 °F** while firing, the boiler may be operating in condensing mode (~95 % AFUE vs ~85 %).
+
+      # ── Monthly boiler run time trend ────────────────────────────────────────
+      - type: grid
+        column_span: 3
+        cards:
+          - type: statistics-graph
+            title: Daily Boiler Run Time (hours)
+            entities:
+              - entity: sensor.boiler_run_time_today
+                name: Hours Running
+            period: day
+            stat_types:
+              - max
+            chart_type: bar
+            days_to_show: 30

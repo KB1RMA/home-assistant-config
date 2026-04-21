@@ -1,0 +1,43 @@
+# Boiler run-time statistics (history_stats)
+# Requires binary_sensor.boiler_firing (integrations/heating-binary-sensors.yaml)
+
+# Hours the boiler has been firing today
+- platform: history_stats
+  name: "Boiler Run Time Today"
+  unique_id: boiler_run_time_today
+  entity_id: binary_sensor.boiler_firing
+  state: "on"
+  type: time
+  start: "{{ now().replace(hour=0, minute=0, second=0, microsecond=0) }}"
+  end: "{{ now() }}"
+
+# Percentage of today the boiler has been firing (0–100)
+- platform: history_stats
+  name: "Boiler Duty Cycle Today"
+  unique_id: boiler_duty_cycle_today
+  entity_id: binary_sensor.boiler_firing
+  state: "on"
+  type: ratio
+  start: "{{ now().replace(hour=0, minute=0, second=0, microsecond=0) }}"
+  end: "{{ now() }}"
+
+# Number of distinct firing cycles today (short cycles = short-cycling warning)
+- platform: history_stats
+  name: "Boiler Cycles Today"
+  unique_id: boiler_cycles_today
+  entity_id: binary_sensor.boiler_firing
+  state: "on"
+  type: count
+  start: "{{ now().replace(hour=0, minute=0, second=0, microsecond=0) }}"
+  end: "{{ now() }}"
+
+# Total hours fired this calendar month
+- platform: history_stats
+  name: "Boiler Run Time This Month"
+  unique_id: boiler_run_time_this_month
+  entity_id: binary_sensor.boiler_firing
+  state: "on"
+  type: time
+  start: "{{ now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) }}"
+  end: "{{ now() }}"
+

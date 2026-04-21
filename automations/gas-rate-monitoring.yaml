@@ -36,7 +36,7 @@
     value_template: >
       {{ states('sensor.nationalgrid_gas_tariff_updated') not in ['unknown', 'unavailable'] }}
   actions:
-  - action: notify.persistent_notification
+  - action: persistent_notification.create
     data:
       title: "{{ notification_title }} - Rate Update Detected"
       notification_id: gas_rate_change
@@ -107,37 +107,41 @@
 # High usage alert
 - id: 'gas_usage_high_alert'
   alias: "Gas Usage - High Consumption Alert"
-  description: "Alert when gas usage is significantly higher than normal"
+  description: "Alert when gas usage is significantly higher than normal, accounting for outdoor temperature"
   triggers:
   - trigger: numeric_state
     entity_id: sensor.current_month_gas_consumption_trend
-    attribute: projected_monthly_consumption
+    attribute: projected_monthly_consumption_weather_adjusted
     above: input_number.gas_usage_alert_threshold
     for:
       hours: 6  # Wait 6 hours to ensure it's not a temporary spike
   conditions:
   - condition: template
     value_template: >
-      {{ state_attr('sensor.current_month_gas_consumption_trend', 'projected_monthly_consumption') | float(0) > 0 }}
+      {{ state_attr('sensor.current_month_gas_consumption_trend', 'projected_monthly_consumption_weather_adjusted') | float(0) > 0 }}
   actions:
   - action: notify.persistent_notification
     data:
       title: "🔥 High Gas Usage Alert"
       message: >
         **High Gas Usage Detected!**
-        
-        **Current Projections:**
-        - Projected Monthly Usage: {{ state_attr('sensor.current_month_gas_consumption_trend', 'projected_monthly_consumption') }} ft³
+
+        **Current Conditions:**
+        - Outdoor Temperature: {{ state_attr('sensor.current_month_gas_consumption_trend', 'outdoor_temp_f') }}°F
+        - Days Remaining This Month: {{ state_attr('sensor.current_month_gas_consumption_trend', 'days_remaining') }}
+
+        **Projections:**
+        - Weather-Adjusted Projection: {{ state_attr('sensor.current_month_gas_consumption_trend', 'projected_monthly_consumption_weather_adjusted') }} ft³
+        - Simple Linear Projection: {{ state_attr('sensor.current_month_gas_consumption_trend', 'projected_monthly_consumption') }} ft³
         - Usage This Month: {{ states('sensor.current_month_gas_consumption_trend') }} ft³
         - Days Elapsed: {{ state_attr('sensor.current_month_gas_consumption_trend', 'days_in_month') }}
-        
+
         **Last Month for Comparison:**
         - Previous Usage: {{ state_attr('sensor.estimated_monthly_gas_cost', 'last_month_consumption_ft3') }} ft³
-        
-        This usage is above your alert threshold of {{ states('input_number.gas_usage_alert_threshold') }} ft³.
-        
+
+        This weather-adjusted projection is above your alert threshold of {{ states('input_number.gas_usage_alert_threshold') }} ft³.
+
         Consider checking:
         - Thermostat settings
         - Windows/doors left open
         - Heating system efficiency
-        - Weather conditions
