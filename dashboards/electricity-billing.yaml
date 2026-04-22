@@ -1,0 +1,149 @@
+title: Electricity
+views:
+  - type: sections
+    title: Electric Billing
+    path: electric-billing
+    icon: mdi:flash
+    max_columns: 3
+    sections:
+
+      # ── KPI tiles ────────────────────────────────────────────────────────────
+      - type: grid
+        column_span: 3
+        columns: 4
+        cards:
+          - type: tile
+            entity: sensor.electric_utility
+            name: This Month Usage
+            icon: mdi:lightning-bolt
+          - type: tile
+            entity: sensor.current_month_electric_cost
+            name: Spent So Far
+            icon: mdi:currency-usd
+          - type: tile
+            entity: sensor.projected_monthly_electric_cost
+            name: Projected Bill
+            icon: mdi:calendar-month
+          - type: tile
+            entity: sensor.estimated_monthly_electric_cost
+            name: Last Month Bill
+            icon: mdi:receipt-text-outline
+
+      # ── Consumption history ───────────────────────────────────────────────────
+      - type: grid
+        column_span: 3
+        cards:
+          - type: statistics-graph
+            title: Monthly Electricity Consumption (kWh)
+            entities:
+              - entity: sensor.electric_meter_consumption
+                name: Electricity Used
+            period: month
+            stat_types:
+              - change
+            chart_type: bar
+            days_to_show: 365
+
+      # ── Last month breakdown ──────────────────────────────────────────────────
+      - type: grid
+        column_span: 1
+        cards:
+          - type: markdown
+            title: Last Month Breakdown
+            content: |-
+              | | |
+              |:--|--:|
+              | Consumption | {{ state_attr('sensor.estimated_monthly_electric_cost', 'last_month_consumption_kwh') }} kWh |
+              | | |
+              | Delivery charges | ${{ state_attr('sensor.estimated_monthly_electric_cost', 'estimated_delivery_cost') }} |
+              | Supply charges | ${{ state_attr('sensor.estimated_monthly_electric_cost', 'estimated_supply_cost') }} |
+              | Customer charge | ${{ state_attr('sensor.estimated_monthly_electric_cost', 'customer_charge') }} |
+              {%- if state_attr('sensor.estimated_monthly_electric_cost', 'ma_winter_bill_relief_applied') %}
+              | ❄️ MA Winter Relief | −25% |
+              {%- endif %}
+              | Paperless credit | −${{ state_attr('sensor.estimated_monthly_electric_cost', 'paperless_credit') }} |
+              | | |
+              | **Estimated total** | **${{ states('sensor.estimated_monthly_electric_cost') }}** |
+
+      # ── Current rates ─────────────────────────────────────────────────────────
+      - type: grid
+        column_span: 1
+        cards:
+          - type: markdown
+            title: Current Rates — R-1
+            content: |-
+              | Component | Rate |
+              |:--|--:|
+              | Delivery | ${{ states('input_number.electric_delivery_rate') }}/kWh |
+              | Supply | ${{ states('input_number.electric_supply_rate') }}/kWh |
+              | **Combined Rate** | **${{ states('sensor.electric_combined_rate') }}/kWh** |
+              | | |
+              | Customer charge | ${{ states('input_number.electric_customer_charge') }} |
+              | Paperless credit | −${{ states('input_number.electric_paperless_credit') }} |
+
+      # ── Helpers for manual rate updates ──────────────────────────────────────
+      - type: grid
+        column_span: 1
+        cards:
+          - type: entities
+            title: Update After Each Bill
+            entities:
+              - entity: input_number.electric_delivery_rate
+                name: Delivery Rate (sum of per-kWh items)
+                icon: mdi:transmission-tower
+              - entity: input_number.electric_supply_rate
+                name: Supply Rate
+                icon: mdi:flash
+              - entity: input_number.electric_customer_charge
+                name: Customer Charge
+                icon: mdi:cash
+              - entity: input_number.electric_paperless_credit
+                name: Paperless Credit
+                icon: mdi:email-check-outline
+
+  # ── Rate History view ────────────────────────────────────────────────────────
+  - type: sections
+    title: Rate History
+    path: electric-rate-history
+    icon: mdi:chart-line
+    max_columns: 3
+    sections:
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: markdown
+            content: |-
+              **National Grid R-1 — Rate Schedule**
+              Delivery rate is the sum of 8 per-kWh line items (Dist Chg, Transition, Transmission, Energy Efficiency, Renewable Energy, Net Meter Recovery, Distributed Solar, Electric Vehicle). Supply is the Basic Service Fixed rate. Update both from each monthly bill.
+
+      - type: grid
+        column_span: 1
+        cards:
+          - type: history-graph
+            title: Combined Rate (Delivery + Supply)
+            entities:
+              - entity: sensor.electric_combined_rate
+                name: "$/kWh"
+            hours_to_show: 8760
+            logarithmic_scale: false
+
+      - type: grid
+        column_span: 1
+        cards:
+          - type: history-graph
+            title: Delivery Rate
+            entities:
+              - entity: input_number.electric_delivery_rate
+                name: Delivery $/kWh
+            hours_to_show: 8760
+
+      - type: grid
+        column_span: 1
+        cards:
+          - type: history-graph
+            title: Supply Rate
+            entities:
+              - entity: input_number.electric_supply_rate
+                name: Supply $/kWh
+            hours_to_show: 8760

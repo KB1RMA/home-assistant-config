@@ -1,0 +1,51 @@
+# Electricity Rate Input Helpers
+# National Grid — Residential Regular R-1
+# Update these values when you receive your monthly electric bill
+
+# Delivery rate per kWh (sum of all delivery per-kWh line items; changes periodically)
+# R-1: Dist Chg $0.10060702 + Transition -$0.00029225 + Transmission $0.05474772
+#      + Energy Efficiency $0.02879 + Renewable Energy $0.0005
+#      + Net Meter Recovery $0.02427547 + Distributed Solar $0.00935
+#      + Electric Vehicle $0.00174 = $0.21971796/kWh
+electric_delivery_rate:
+  name: "Electric Delivery Rate"
+  min: 0.01
+  max: 1.0
+  step: 0.00000001
+  initial: 0.21971796
+  unit_of_measurement: "USD/kWh"
+  icon: mdi:transmission-tower
+  mode: box
+
+# Supply rate per kWh (Basic Service Fixed rate; changes periodically)
+electric_supply_rate:
+  name: "Electric Supply Rate"
+  min: 0.01
+  max: 1.0
+  step: 0.00001
+  initial: 0.15372
+  unit_of_measurement: "USD/kWh"
+  icon: mdi:flash
+  mode: box
+
+# Monthly customer charge (fixed fee on each bill)
+electric_customer_charge:
+  name: "Electric Customer Charge"
+  min: 0.0
+  max: 50.0
+  step: 0.01
+  initial: 10.00
+  unit_of_measurement: "USD"
+  icon: mdi:cash
+  mode: box
+
+# Paperless billing credit (subtracted from total each bill)
+electric_paperless_credit:
+  name: "Electric Paperless Credit"
+  min: 0.0
+  max: 5.0
+  step: 0.01
+  initial: 0.49
+  unit_of_measurement: "USD"
+  icon: mdi:cash-minus
+  mode: box
