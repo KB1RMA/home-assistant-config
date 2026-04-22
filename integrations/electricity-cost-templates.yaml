@@ -1,0 +1,164 @@
+# Electricity Cost Calculation Template Sensors
+# National Grid — Residential Regular R-1
+# Provides real-time cost tracking for Home Assistant Energy Dashboard
+# Source: sensor.electric_meter_consumption (kWh, total_increasing)
+# Utility meter: sensor.electric_utility (monthly cycle)
+
+- sensor:
+    # Combined rate per kWh — use this as "entity with current price" in the
+    # Energy Dashboard grid connection to get automatic cost tracking.
+    - name: "Electric Combined Rate"
+      unique_id: electric_combined_rate
+      unit_of_measurement: "USD/kWh"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set delivery = states('input_number.electric_delivery_rate') | float(0.21971796) %}
+        {% set supply = states('input_number.electric_supply_rate') | float(0.15372) %}
+        {{ (delivery + supply) | round(8) }}
+
+    # Cumulative electricity cost sensor for energy dashboard
+    - name: "Electric Total Cost"
+      unique_id: electric_total_cost
+      unit_of_measurement: "USD"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set current_kwh = states('sensor.electric_meter_consumption') | float(0) %}
+        {% set delivery_rate = states('input_number.electric_delivery_rate') | float(0.21971796) %}
+        {% set supply_rate = states('input_number.electric_supply_rate') | float(0.15372) %}
+        {{ (current_kwh * (delivery_rate + supply_rate)) | round(2) }}
+      attributes:
+        total_consumption_kwh: >
+          {{ states('sensor.electric_meter_consumption') | float(0) | round(2) }}
+        delivery_rate_per_kwh: >
+          {{ states('input_number.electric_delivery_rate') | float(0.21971796) }}
+        supply_rate_per_kwh: >
+          {{ states('input_number.electric_supply_rate') | float(0.15372) }}
+        combined_rate_per_kwh: >
+          {% set delivery = states('input_number.electric_delivery_rate') | float(0.21971796) %}
+          {% set supply = states('input_number.electric_supply_rate') | float(0.15372) %}
+          {{ (delivery + supply) | round(8) }}
+        note: >
+          {{ "Tracks cumulative variable usage cost (excludes customer charge, paperless credit, and MA Winter Bill Relief). See Estimated Monthly Electric Cost for full bill estimate." }}
+
+    # Calculate estimated monthly electric cost (full bill estimate)
+    - name: "Estimated Monthly Electric Cost"
+      unique_id: estimated_monthly_electric_cost
+      unit_of_measurement: "USD"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set last_period = state_attr('sensor.electric_utility', 'last_period') | float(0) %}
+        {% if last_period <= 0 %}
+          {{ none }}
+        {% else %}
+        {% set last_month_kwh = last_period %}
+
+        {% set delivery_rate = states('input_number.electric_delivery_rate') | float(0.21971796) %}
+        {% set supply_rate = states('input_number.electric_supply_rate') | float(0.15372) %}
+        {% set customer_charge = states('input_number.electric_customer_charge') | float(10.00) %}
+        {% set paperless_credit = states('input_number.electric_paperless_credit') | float(0.49) %}
+
+        {% set variable_cost = last_month_kwh * (delivery_rate + supply_rate) %}
+        {% set total_before_relief = variable_cost + customer_charge %}
+
+        {# MA Winter Bill Relief: 25% reduction applies to bills covering Feb or Mar usage #}
+        {% set last_month = (now().month - 2) % 12 + 1 %}
+        {% if last_month == 2 or last_month == 3 %}
+          {% set total_with_relief = total_before_relief * 0.75 %}
+        {% else %}
+          {% set total_with_relief = total_before_relief %}
+        {% endif %}
+
+        {{ (total_with_relief - paperless_credit) | round(2) }}
+        {% endif %}
+      attributes:
+        last_month_consumption_kwh: >
+          {{ state_attr('sensor.electric_utility', 'last_period') | float(0) | round(2) }}
+        estimated_variable_cost: >
+          {% set last_month_kwh = state_attr('sensor.electric_utility', 'last_period') | float(0) %}
+          {% set delivery_rate = states('input_number.electric_delivery_rate') | float(0.21971796) %}
+          {% set supply_rate = states('input_number.electric_supply_rate') | float(0.15372) %}
+          {{ (last_month_kwh * (delivery_rate + supply_rate)) | round(2) }}
+        estimated_delivery_cost: >
+          {% set last_month_kwh = state_attr('sensor.electric_utility', 'last_period') | float(0) %}
+          {% set delivery_rate = states('input_number.electric_delivery_rate') | float(0.21971796) %}
+          {{ (last_month_kwh * delivery_rate) | round(2) }}
+        estimated_supply_cost: >
+          {% set last_month_kwh = state_attr('sensor.electric_utility', 'last_period') | float(0) %}
+          {% set supply_rate = states('input_number.electric_supply_rate') | float(0.15372) %}
+          {{ (last_month_kwh * supply_rate) | round(2) }}
+        customer_charge: >
+          {{ states('input_number.electric_customer_charge') | float(10.00) }}
+        paperless_credit: >
+          {{ states('input_number.electric_paperless_credit') | float(0.49) }}
+        ma_winter_bill_relief_applied: >
+          {% set last_month = (now().month - 2) % 12 + 1 %}
+          {{ last_month == 2 or last_month == 3 }}
+        delivery_rate_per_kwh: >
+          {{ states('input_number.electric_delivery_rate') | float(0.21971796) }}
+        supply_rate_per_kwh: >
+          {{ states('input_number.electric_supply_rate') | float(0.15372) }}
+        rate_schedule: >
+          {{ "Residential Regular R-1" }}
+
+    # Current month variable cost so far (consumption-based, no fixed charges)
+    - name: "Current Month Electric Cost"
+      unique_id: current_month_electric_cost
+      unit_of_measurement: "USD"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set current_kwh = states('sensor.electric_utility') | float(0) %}
+        {% set delivery_rate = states('input_number.electric_delivery_rate') | float(0.21971796) %}
+        {% set supply_rate = states('input_number.electric_supply_rate') | float(0.15372) %}
+        {{ (current_kwh * (delivery_rate + supply_rate)) | round(2) }}
+
+    # Projected full-month bill (usage extrapolated + all fixed charges)
+    - name: "Projected Monthly Electric Cost"
+      unique_id: projected_monthly_electric_cost
+      unit_of_measurement: "USD"
+      device_class: monetary
+      state_class: measurement
+      state: >
+        {% set current_kwh = states('sensor.electric_utility') | float(0) %}
+        {% set days_elapsed = now().day %}
+        {% set month = now().month %}
+        {% set year = now().year %}
+        {% if month == 12 %}
+          {% set next_month = now().replace(year=year+1, month=1, day=1) %}
+        {% else %}
+          {% set next_month = now().replace(month=month+1, day=1) %}
+        {% endif %}
+        {% set days_in_month = (next_month - now().replace(day=1)).days %}
+        {% set projected_kwh = (current_kwh * days_in_month / days_elapsed) if days_elapsed > 0 else 0 %}
+
+        {% set delivery_rate = states('input_number.electric_delivery_rate') | float(0.21971796) %}
+        {% set supply_rate = states('input_number.electric_supply_rate') | float(0.15372) %}
+        {% set customer_charge = states('input_number.electric_customer_charge') | float(10.00) %}
+        {% set paperless_credit = states('input_number.electric_paperless_credit') | float(0.49) %}
+
+        {% set variable = projected_kwh * (delivery_rate + supply_rate) %}
+        {% set total = variable + customer_charge %}
+        {% if month == 2 or month == 3 %}
+          {% set total = total * 0.75 %}
+        {% endif %}
+        {{ (total - paperless_credit) | round(2) }}
+      attributes:
+        days_elapsed: "{{ now().day }}"
+        projected_consumption_kwh: >
+          {% set current_kwh = states('sensor.electric_utility') | float(0) %}
+          {% set days_elapsed = now().day %}
+          {% set month = now().month %}
+          {% set year = now().year %}
+          {% if month == 12 %}
+            {% set next_month = now().replace(year=year+1, month=1, day=1) %}
+          {% else %}
+            {% set next_month = now().replace(month=month+1, day=1) %}
+          {% endif %}
+          {% set days_in_month = (next_month - now().replace(day=1)).days %}
+          {{ ((current_kwh * days_in_month / days_elapsed) if days_elapsed > 0 else 0) | round(0) }}
+        winter_relief_applied: >
+          {% set month = now().month %}
+          {{ month == 2 or month == 3 }}
